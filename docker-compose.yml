@@ -2,7 +2,7 @@ services:
   db:
     build: ./sql
     ports:
-      - "5432:5432"
+      - 5432:5432
     volumes:
       - ./data:/var/lib/postgresql/data
       - ./sql/products.sql:/docker-entrypoint-storedb.d/products.sql
@@ -11,16 +11,19 @@ services:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=secret
       - POSTGRES_DB=store_management
-      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=db
+
   app:
     build: .
     ports:
-      - "8080:8080"
+      - 8080:8080
     volumes:
-      - ./:/app
+      - .:/app
+    env_file:
+      - ./.env
     depends_on:
       - db
 
-networks:
-  default:
-    name: app-network
+# networks:
+#   app-network:
+#     driver: bridge
