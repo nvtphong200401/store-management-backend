@@ -41,8 +41,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 
 			userID := claims["user_id"].(float64)
-			var user models.User
-			err = as.CheckID(uint(userID))
+			var user models.Employee
+			err = as.CheckID(uint(userID), &user)
 			if err := claims.Valid(); err != nil {
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return

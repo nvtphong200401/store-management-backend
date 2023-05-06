@@ -33,7 +33,7 @@ func generateToken(userID uint) (string, error) {
 }
 
 func (as *AuthService) Login(username string, password string) (string, error) {
-	var user User
+	var user Employee
 	// check username
 	result := db.Where("username = ?", username).First(&user)
 	// match username
@@ -55,16 +55,15 @@ func (as *AuthService) SignUp(username string, password string) error {
 	if err != nil {
 		return err
 	}
-	var user User = User{Username: username, Password: hashedPass}
+	var employee Employee = Employee{User: User{Username: username, Password: hashedPass}}
 	// create if not exist
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&Employee{})
 
-	result := db.Create(&user)
+	result := db.Create(&employee)
 	return result.Error
 }
 
-func (as *AuthService) CheckID(id uint) error {
-	var user User
+func (as *AuthService) CheckID(id uint, user *Employee) error {
 	result := db.First(&user, id)
 	return result.Error
 }

@@ -5,8 +5,8 @@ services:
       - 5432:5432
     volumes:
       - ./data:/var/lib/postgresql/data
-      - ./sql/products.sql:/docker-entrypoint-storedb.d/products.sql
-      - ./sql/users.sql:/docker-entrypoint-storedb.d/users.sql
+      # - ./sql/products.sql:/docker-entrypoint-storedb.d/products.sql
+      # - ./sql/users.sql:/docker-entrypoint-storedb.d/users.sql
     environment:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=secret

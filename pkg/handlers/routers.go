@@ -20,13 +20,20 @@ func InitRouter() *gin.Engine {
 	// Authentication
 	apiv1.POST("/login", api.Login)
 	apiv1.POST("/signup", api.SignUp)
-	// Product
+
 	apiv1.Use(middleware.AuthMiddleware())
 	{
+		// Employee
+		apiv1.GET("user", api.GetEmployeeInfo)
+		// Product
 		apiv1.POST("/products", api.InsertProduct)
 		apiv1.GET("/products", api.ListProduct)
 		apiv1.PUT("/products/:id", api.UpdateProduct)
 		apiv1.DELETE("/products/:id", api.DeleteProduct)
+		// Store
+		apiv1.POST("/store", api.CreateStore)
+		apiv1.POST("/store/:id", api.JoinStore)
+		apiv1.GET("/store", api.GetStoreInfo)
 	}
 
 	return r
