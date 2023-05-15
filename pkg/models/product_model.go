@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -23,6 +24,9 @@ type Product struct {
 	ProductName string  `json:"ProductName"`
 	Category    string  `json:"Category"`
 	Price       float64 `json:"Price"`
+	Stock       int     `json:"Stock"`
+	StoreID     uint    `gorm:"primaryKey;"`
+	ID          uint    `gorm:"primarykey;uniqueIndex;"`
 }
 
 type ProductService struct {
@@ -32,33 +36,45 @@ func (ps *ProductService) AddProduct(p *Product) error {
 	now := time.Now()
 	p.CreatedAt = now
 	p.UpdatedAt = now
+
+	db.AutoMigrate(&Product{})
 	if err := db.Create(&p).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (ps *ProductService) GetProducts() ([]Product, error) {
+func (ps *ProductService) GetProducts(storeID uint) ([]Product, error) {
 	var products []Product
-
-	if err := db.Find(&products).Error; err != nil {
+	if err := db.Where("store_id = ?", storeID).Find(&products).Error; err != nil {
 		return nil, err
 	}
 
 	return products, nil
 }
 
-func (ps *ProductService) UpdateProduct(id uint, product *Product) error {
-
-	product.ID = id
+func (ps *ProductService) UpdateProduct(product *Product) error {
 	product.UpdatedAt = time.Now()
-	result := db.Save(product)
+	result := db.Save(&product)
 	if result.Error != nil {
 		return result.Error
 	}
 	return nil
 }
 
-func (ps *ProductService) DeleteProduct(id uint) error {
-	return db.Where("id = ?", id).Delete(&Product{}).Error
+func (ps *ProductService) DeleteProduct(id uint, storeID uint) error {
+	return db.Where("id = ? and store_id = ?", id, storeID).Delete(&Product{}).Error
+
+}
+
+func (ps *ProductService) SearchProduct(keyword string, storeID uint) []Product {
+	var products []Product
+	keywordLike := "%" + keyword + "%"
+	log.Println(keywordLike)
+	err := db.Where("(product_name LIKE ? OR 'id' = ?) AND store_id = ?", keywordLike, keyword, storeID).Find(&products).Error
+	if err != nil {
+		log.Println(err.Error())
+		return []Product{}
+	}
+	return products
 }

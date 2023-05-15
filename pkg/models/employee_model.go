@@ -14,7 +14,7 @@ type EmployeeService struct {
 }
 
 func (es *EmployeeService) JoinStore(storeID uint, employee Employee) error {
-	if employee.StoreID == 0 {
+	if employee.StoreID != 0 {
 		return errors.New("Already in a store")
 	}
 
@@ -32,14 +32,16 @@ func (es *EmployeeService) JoinStore(storeID uint, employee Employee) error {
 	return nil
 }
 
-func (es *EmployeeService) CreateStore(s *StoreModel, employee Employee) error {
-	if employee.StoreID == 0 {
+func (es *EmployeeService) CreateStore(s *StoreModel, employee *Employee) error {
+
+	if employee.StoreID != 0 {
 		return errors.New("Already in a store")
 	}
 
 	now := time.Now()
 	s.CreatedAt = now
 	s.UpdatedAt = now
+	db.AutoMigrate(&StoreModel{})
 	if err := db.Create(&s).Error; err != nil {
 		return err
 	}

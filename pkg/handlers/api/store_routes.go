@@ -14,12 +14,15 @@ var es models.EmployeeService
 func CreateStore(c *gin.Context) {
 	var store models.StoreModel
 	err := c.BindJSON(&store)
-	employee, exist := c.Get("user")
+	anyEmployee, exist := c.Get("user")
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, err)
 	}
 	if exist {
-		es.CreateStore(&store, employee.(models.Employee))
+		employee := anyEmployee.(models.Employee)
+		es.CreateStore(&store, &employee)
+		c.Set("user", employee)
+		c.JSON(http.StatusOK, gin.H{"message": "Created successfully"})
 	} else {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, errors.New("Unauthorized").Error())
 	}

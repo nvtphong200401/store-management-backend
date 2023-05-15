@@ -58,3 +58,22 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func StoreMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		anyUser, existed := c.Get("user")
+		if existed {
+			user := anyUser.(models.Employee)
+			if user.StoreID == 0 {
+				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "You have not created or joined a store"})
+				return
+			} else {
+				c.Next()
+				return
+			}
+		} else {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
+			return
+		}
+	}
+}
