@@ -4,7 +4,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - ./backup:/backup
       # - ./sql/products.sql:/docker-entrypoint-storedb.d/products.sql
       # - ./sql/users.sql:/docker-entrypoint-storedb.d/users.sql
     environment:
@@ -13,16 +13,16 @@ services:
       - POSTGRES_DB=store_management
       - POSTGRES_HOST=db
 
-  app:
-    build: .
-    ports:
-      - 8080:8080
-    volumes:
-      - .:/app
-    env_file:
-      - ./.env
-    depends_on:
-      - db
+  # app:
+  #   build: .
+  #   ports:
+  #     - 8080:8080 pg_dump -U root -W -h localhost -p 5432 -d store_management -f db.sql
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - ./.env
+  #   depends_on:
+  #     - db
 
 # networks:
 #   app-network:
