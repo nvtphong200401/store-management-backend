@@ -11,7 +11,7 @@ import (
 type User struct {
 	gorm.Model
 	Username string `gorm:"unique"`
-	Password []byte
+	Password []byte `json:"-"`
 }
 
 type AuthService struct{}

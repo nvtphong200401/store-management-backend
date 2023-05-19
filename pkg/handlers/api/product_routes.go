@@ -39,12 +39,18 @@ func ListProduct(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	products, err := ps.GetProducts(employee.StoreID)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil || page < 1 {
+		page = 1
 	}
-	c.JSON(http.StatusOK, map[string]interface{}{"result": products})
+
+	limit, err := strconv.Atoi(c.Query("limit"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	statusCode, metadata := ps.GetProducts(employee.StoreID, page, limit)
+
+	c.JSON(statusCode, metadata)
 }
 
 func UpdateProduct(c *gin.Context) {

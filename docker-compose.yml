@@ -1,5 +1,6 @@
 services:
   db:
+    container_name: store-management_db_1
     build: ./sql
     ports:
       - 5432:5432
