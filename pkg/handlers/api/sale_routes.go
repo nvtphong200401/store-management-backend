@@ -2,16 +2,32 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
+	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
-	"github.com/nvtphong200401/store-management/pkg/models"
 )
 
-var ss models.SaleService
+type SaleAPI interface {
+	CreateSale(c *gin.Context)
+	GetSaleByID(c *gin.Context)
+	GetSales(c *gin.Context)
+}
 
-func CreateSale(c *gin.Context) {
+type saleAPIImpl struct {
+	ss respository.SaleRepository
+}
+
+func NewSaleAPI(sr respository.SaleRepository) SaleAPI {
+	return &saleAPIImpl{
+		ss: sr,
+	}
+}
+
+func (api *saleAPIImpl) CreateSale(c *gin.Context) {
 	var items []models.SaleItem
 	if err := c.ShouldBindBodyWith(&items, binding.JSON); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -23,9 +39,31 @@ func CreateSale(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	if err = ss.PurchaseItems(items, employee.ID, employee.StoreID); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+	statusCode, response := api.ss.PurchaseItems(items, employee.ID, employee.StoreID)
+
+	c.JSON(statusCode, response)
+}
+
+func (api *saleAPIImpl) GetSaleByID(c *gin.Context) {
+	saleid, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "success"})
+	employee, err := helpers.GetEmployee(c)
+	if err != nil {
+		return
+	}
+	code, response := api.ss.GetSaleByID(uint(saleid), employee.StoreID)
+	c.JSON(code, response)
+
+}
+
+func (api *saleAPIImpl) GetSales(c *gin.Context) {
+	employee, err := helpers.GetEmployee(c)
+	if err != nil {
+		return
+	}
+	code, response := api.ss.GetSales(employee.StoreID)
+	c.JSON(code, response)
 }

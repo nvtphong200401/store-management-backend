@@ -1,4 +1,4 @@
-package models
+package db
 
 import (
 	"fmt"
@@ -10,15 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
-
-// type Model struct {
-// 	ID        int       `gorm:"primary_key" json:"id"`
-// 	CreatedAt time.Time `json:"created_at"`
-// 	UpdatedAt time.Time `json:"deleted_at"`
-// }
-
-func SetUp() {
+func SetUp() *gorm.DB {
 	var err error
 	err = godotenv.Load()
 	if err != nil {
@@ -32,15 +24,12 @@ func SetUp() {
 
 	// Construct connection string
 	dsn := fmt.Sprintf("host=%v port=%s user=%v password=%v dbname=%v sslmode=disable", host, port, user, password, dbname)
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// dsn := "postgresql://phong:oV9rXZjpWTpD4yUHLb9Hyw@marsh-wren-4775.8nk.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
 		log.Fatalf("models.Setup err: %v", err)
 	}
 
-}
-
-func CloseDB() {
-	sqlDB, _ := db.DB()
-	defer sqlDB.Close()
+	return db
 }

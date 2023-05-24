@@ -6,13 +6,29 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
+	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
-	"github.com/nvtphong200401/store-management/pkg/models"
 )
 
-var ps models.ProductService
+type ProductAPI interface {
+	InsertProduct(c *gin.Context)
+	ListProduct(c *gin.Context)
+	UpdateProduct(c *gin.Context)
+	DeleteProduct(c *gin.Context)
+	SearchProduct(c *gin.Context)
+}
+type productAPIImpl struct {
+	ps respository.ProductRepository
+}
 
-func InsertProduct(c *gin.Context) {
+func NewProductAPI(ps respository.ProductRepository) ProductAPI {
+	return &productAPIImpl{
+		ps: ps,
+	}
+}
+
+func (api *productAPIImpl) InsertProduct(c *gin.Context) {
 	var product models.Product
 	err := c.BindJSON(&product)
 	if err != nil {
@@ -24,7 +40,7 @@ func InsertProduct(c *gin.Context) {
 		return
 	}
 	product.StoreID = employee.StoreID
-	ps.AddProduct(&product)
+	api.ps.AddProduct(&product)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -34,7 +50,7 @@ func InsertProduct(c *gin.Context) {
 	c.JSON(http.StatusCreated, product)
 }
 
-func ListProduct(c *gin.Context) {
+func (api *productAPIImpl) ListProduct(c *gin.Context) {
 	employee, err := helpers.GetEmployee(c)
 	if err != nil {
 		return
@@ -48,12 +64,12 @@ func ListProduct(c *gin.Context) {
 	if err != nil || limit < 1 {
 		limit = 10
 	}
-	statusCode, metadata := ps.GetProducts(employee.StoreID, page, limit)
+	statusCode, metadata := api.ps.GetProducts(employee.StoreID, page, limit)
 
 	c.JSON(statusCode, metadata)
 }
 
-func UpdateProduct(c *gin.Context) {
+func (api *productAPIImpl) UpdateProduct(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
@@ -73,14 +89,14 @@ func UpdateProduct(c *gin.Context) {
 	product.ID = uint(id)
 	product.StoreID = employee.StoreID
 
-	if err = ps.UpdateProduct(&product); err != nil {
+	if err = api.ps.UpdateProduct(&product); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Cannot update product"})
 		return
 	}
 	c.JSON(http.StatusOK, product)
 }
 
-func DeleteProduct(c *gin.Context) {
+func (api *productAPIImpl) DeleteProduct(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -91,7 +107,7 @@ func DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	err = ps.DeleteProduct(uint(id), employee.StoreID)
+	err = api.ps.DeleteProduct(uint(id), employee.StoreID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -99,7 +115,7 @@ func DeleteProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, id)
 }
 
-func SearchProduct(c *gin.Context) {
+func (api *productAPIImpl) SearchProduct(c *gin.Context) {
 	var body struct {
 		Keyword string `json:"Keyword"`
 	}
@@ -112,6 +128,6 @@ func SearchProduct(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	result := ps.SearchProduct(body.Keyword, employee.StoreID)
+	result := api.ps.SearchProduct(body.Keyword, employee.StoreID)
 	c.JSON(http.StatusOK, gin.H{"result": result})
 }

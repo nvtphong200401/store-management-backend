@@ -6,12 +6,34 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/models"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
+	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/helpers"
 )
 
-var es models.EmployeeService
+// var es models.EmployeeService
 
-func CreateStore(c *gin.Context) {
+type EmployeeAPI interface {
+	CreateStore(c *gin.Context)
+	JoinStore(c *gin.Context)
+	GetEmployeeInfo(c *gin.Context)
+	GetStoreInfo(c *gin.Context)
+	GetJoinRequest(c *gin.Context)
+	UpdateJoinRequest(c *gin.Context)
+}
+
+type employeeAPIImpl struct {
+	sr respository.EmployeeRepository
+}
+
+func NewEmployeeAPI(er respository.EmployeeRepository) EmployeeAPI {
+	return &employeeAPIImpl{
+		sr: er,
+	}
+}
+
+func (api *employeeAPIImpl) CreateStore(c *gin.Context) {
 	var store models.StoreModel
 	err := c.BindJSON(&store)
 	anyEmployee, exist := c.Get("user")
@@ -20,7 +42,7 @@ func CreateStore(c *gin.Context) {
 	}
 	if exist {
 		employee := anyEmployee.(models.Employee)
-		es.CreateStore(&store, &employee)
+		api.sr.CreateStore(&store, &employee)
 		c.Set("user", employee)
 		c.JSON(http.StatusOK, gin.H{"message": "Created successfully"})
 	} else {
@@ -28,7 +50,7 @@ func CreateStore(c *gin.Context) {
 	}
 }
 
-func JoinStore(c *gin.Context) {
+func (api *employeeAPIImpl) JoinStore(c *gin.Context) {
 	storeID := c.Param("id")
 
 	id, err := strconv.Atoi(storeID)
@@ -36,33 +58,31 @@ func JoinStore(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, err)
 		return
 	}
-	employee, exist := c.Get("user")
-	if exist {
-		err = es.JoinStore(uint(id), employee.(models.Employee))
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, err)
-			return
-		}
-	} else {
-		c.AbortWithStatusJSON(http.StatusBadRequest, errors.New("Store ID not found").Error())
+	employee, err := helpers.GetEmployee(c)
+	if err != nil {
+		return
+	}
+	if employee.AlreadyInStore() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Already in a store"})
+		return
+	}
+
+	code, reponse := api.sr.JoinStore(uint(id), employee)
+	c.JSON(code, reponse)
+}
+
+func (api *employeeAPIImpl) GetEmployeeInfo(c *gin.Context) {
+	employee, err := helpers.GetEmployee(c)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"result": employee})
 		return
 	}
 }
 
-func GetEmployeeInfo(c *gin.Context) {
+func (api *employeeAPIImpl) GetStoreInfo(c *gin.Context) {
 	employee, exist := c.Get("user")
 	if exist {
-		c.JSON(http.StatusOK, map[string]interface{}{"result": employee.(models.Employee)})
-		return
-	} else {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, errors.New("Something went wrong").Error())
-	}
-}
-
-func GetStoreInfo(c *gin.Context) {
-	employee, exist := c.Get("user")
-	if exist {
-		store := es.GetStoreInfo(employee.(models.Employee).StoreID)
+		store := api.sr.GetStoreInfo(employee.(models.Employee).StoreID)
 		if store != nil {
 			c.JSON(http.StatusOK, map[string]interface{}{"result": store})
 			return
@@ -73,4 +93,37 @@ func GetStoreInfo(c *gin.Context) {
 	} else {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errors.New("Something went wrong").Error())
 	}
+}
+
+func (api *employeeAPIImpl) GetJoinRequest(c *gin.Context) {
+	employee, err := helpers.GetEmployee(c)
+	if err != nil {
+		return
+	}
+
+	code, response := api.sr.GetJoinRequest(employee.StoreID)
+	c.JSON(code, response)
+
+}
+
+func (api *employeeAPIImpl) UpdateJoinRequest(c *gin.Context) {
+	employee, err := helpers.GetEmployee(c)
+	if err != nil {
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+		return
+	}
+	var body struct {
+		Accept bool `json:"accept"`
+	}
+	if err := c.ShouldBindBodyWith(&body, binding.JSON); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err})
+		return
+	}
+
+	code, response := api.sr.UpdateJoinRequest(employee.StoreID, uint(id), body.Accept)
+	c.JSON(code, response)
 }

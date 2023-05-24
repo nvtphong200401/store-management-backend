@@ -2,20 +2,27 @@ package api
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/models"
-	"golang.org/x/time/rate"
+	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
 )
 
-var (
-	as         *models.AuthService
-	limiter    *rate.Limiter
-	blockedIPs = make(map[string]time.Time)
-)
+type AuthAPI interface {
+	Login(c *gin.Context)
+	SignUp(c *gin.Context)
+}
 
-func Login(c *gin.Context) {
+type authAPIImpl struct {
+	as respository.AuthRepository
+}
+
+func NewAuthAPI(ar respository.AuthRepository) AuthAPI {
+	return &authAPIImpl{
+		as: ar,
+	}
+}
+
+func (api *authAPIImpl) Login(c *gin.Context) {
 	var credentials struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -25,7 +32,7 @@ func Login(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	token, err := as.Login(credentials.Username, credentials.Password)
+	token, err := api.as.Login(credentials.Username, credentials.Password)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid username or password"})
 		return
@@ -34,7 +41,7 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": token})
 }
 
-func SignUp(c *gin.Context) {
+func (api *authAPIImpl) SignUp(c *gin.Context) {
 	var credentials struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -43,7 +50,7 @@ func SignUp(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	if err := as.SignUp(credentials.Username, credentials.Password); err != nil {
+	if err := api.as.SignUp(credentials.Username, credentials.Password); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Cannot create user"})
 		return
 	}

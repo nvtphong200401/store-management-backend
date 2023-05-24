@@ -4,11 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/handlers/api"
-	"github.com/nvtphong200401/store-management/pkg/handlers/middleware"
+	"github.com/nvtphong200401/store-management/pkg/handlers/controller"
 )
 
-func InitRouter() *gin.Engine {
+func InitRouter(c controller.AppController) *gin.Engine {
 	r := gin.New()
 	r.GET("/", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "Hello world")
@@ -17,38 +16,64 @@ func InitRouter() *gin.Engine {
 	r.Use(gin.Recovery())
 
 	apiv1 := r.Group("api/v1")
-	apiProduct := apiv1.Group("products")
-	apiSale := apiv1.Group("sales")
-	// Authentication
-	apiv1.POST("/login", api.Login)
-	apiv1.POST("/signup", api.SignUp)
 
-	apiv1.Use(middleware.AuthMiddleware())
-	{
-		// Employee
-		apiv1.GET("/user", api.GetEmployeeInfo)
-		// Store
-		apiv1.POST("/store", api.CreateStore)
-		apiv1.POST("/store/:id", api.JoinStore)
-		apiv1.GET("/store", api.GetStoreInfo)
-	}
-	// Product
-	apiProduct.Use(middleware.AuthMiddleware(), middleware.StoreMiddleware())
-	{
-		apiProduct.POST("", api.InsertProduct)
-		apiProduct.GET("", api.ListProduct)
-		apiProduct.PUT("/:id", api.UpdateProduct)
-		apiProduct.DELETE("/:id", api.DeleteProduct)
-		apiProduct.GET("/search", api.SearchProduct)
-		// apiv1.POST("/products", api.InsertProduct)
-		// apiv1.GET("/products", api.ListProduct)
-		// apiv1.PUT("/products/:id", api.UpdateProduct)
-		// apiv1.DELETE("/products/:id", api.DeleteProduct)
-	}
-	apiSale.Use(middleware.AuthMiddleware(), middleware.StoreMiddleware())
-	{
-		apiSale.POST("", api.CreateSale)
-	}
+	// Authentication
+	apiv1.POST("/login", c.Auth.Login)
+	apiv1.POST("/signup", c.Auth.SignUp)
+
+	productRoutes := apiv1.Group("products")
+	productRoutes.Use(c.Middleware.AuthMiddleware(), c.Middleware.StoreMiddleware())
+
+	saleRoutes := apiv1.Group("sales")
+	saleRoutes.Use(c.Middleware.AuthMiddleware(), c.Middleware.StoreMiddleware())
+
+	userRoutes := apiv1.Group("user")
+	userRoutes.Use(c.Middleware.AuthMiddleware())
+
+	storeRoutes := apiv1.Group("store")
+	storeRoutes.Use(c.Middleware.AuthMiddleware())
+
+	productRouter(productRoutes, c)
+	saleRouter(saleRoutes, c)
+	storeRouter(storeRoutes, c)
+	userRouter(userRoutes, c)
 
 	return r
+}
+
+func productRouter(apiProduct *gin.RouterGroup, c controller.AppController) {
+
+	apiProduct.POST("", c.Product.InsertProduct)
+	apiProduct.GET("", c.Product.ListProduct)
+	apiProduct.PUT("/:id", c.Product.UpdateProduct)
+	apiProduct.DELETE("/:id", c.Product.DeleteProduct)
+	apiProduct.GET("/search", c.Product.SearchProduct)
+
+}
+
+func storeRouter(apiStore *gin.RouterGroup, c controller.AppController) {
+
+	apiStore.POST("", c.Employee.CreateStore)
+	apiStore.POST("/:id", c.Employee.JoinStore)
+
+	apiStore.Use(c.Middleware.StoreMiddleware(), c.Middleware.OwnerMiddleware())
+	{
+		apiStore.GET("", c.Employee.GetStoreInfo)
+		apiStore.GET("/requests", c.Employee.GetJoinRequest)
+		apiStore.PUT("/requests/:id", c.Employee.UpdateJoinRequest)
+	}
+}
+
+func saleRouter(apiSale *gin.RouterGroup, c controller.AppController) {
+
+	apiSale.POST("", c.Sale.CreateSale)
+	apiSale.GET("/:id", c.Sale.GetSaleByID)
+	apiSale.GET("", c.Sale.GetSales)
+}
+
+func userRouter(apiUser *gin.RouterGroup, c controller.AppController) {
+	apiUser.Use(c.Middleware.AuthMiddleware())
+	{
+		apiUser.GET("", c.Employee.GetEmployeeInfo)
+	}
 }

@@ -6,8 +6,26 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/models"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
+	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/helpers"
 )
+
+type Middleware interface {
+	AuthMiddleware() gin.HandlerFunc
+	StoreMiddleware() gin.HandlerFunc
+	OwnerMiddleware() gin.HandlerFunc
+}
+
+type middlewareImpl struct {
+	auth respository.AuthRepository
+}
+
+func NewMiddleware(a respository.AuthRepository) Middleware {
+	return &middlewareImpl{
+		auth: a,
+	}
+}
 
 func verifyToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -22,9 +40,8 @@ func verifyToken(tokenString string) (*jwt.Token, error) {
 
 }
 
-func AuthMiddleware() gin.HandlerFunc {
+func (m *middlewareImpl) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var as models.AuthService
 		tokenString := c.Request.Header.Get("Authorization")
 		if tokenString == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
@@ -42,7 +59,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 			userID := claims["user_id"].(float64)
 			var user models.Employee
-			err = as.CheckID(uint(userID), &user)
+			err = m.auth.CheckID(uint(userID), &user)
 			if err := claims.Valid(); err != nil {
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
@@ -59,12 +76,11 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func StoreMiddleware() gin.HandlerFunc {
+func (m *middlewareImpl) StoreMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		anyUser, existed := c.Get("user")
-		if existed {
-			user := anyUser.(models.Employee)
-			if user.StoreID == 0 {
+		employee, err := helpers.GetEmployee(c)
+		if err == nil {
+			if !employee.AlreadyInStore() {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "You have not created or joined a store"})
 				return
 			} else {
@@ -74,6 +90,20 @@ func StoreMiddleware() gin.HandlerFunc {
 		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 			return
+		}
+	}
+}
+
+func (m *middlewareImpl) OwnerMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		employee, err := helpers.GetEmployee(c)
+		if err != nil {
+			return
+		}
+		if employee.IsEmployeeOwner() {
+			c.Next()
+		} else {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
 		}
 	}
 }
