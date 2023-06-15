@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/handlers"
 	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 	"github.com/nvtphong200401/store-management/pkg/registry"
@@ -52,7 +53,11 @@ func main() {
 	}
 	defer d.Close()
 
-	r := registry.NewRegistry(datastore)
+	r := registry.NewRegistry(datastore, redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	}))
 	routersInit := handlers.InitRouter(r.NewAppController())
 	server := &http.Server{
 		Addr:    ":8080",

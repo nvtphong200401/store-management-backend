@@ -42,9 +42,14 @@ func (api *employeeAPIImpl) CreateStore(c *gin.Context) {
 	}
 	if exist {
 		employee := anyEmployee.(models.Employee)
-		api.sr.CreateStore(&store, &employee)
-		c.Set("user", employee)
-		c.JSON(http.StatusOK, gin.H{"message": "Created successfully"})
+		if employee.AlreadyInStore() {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Already in a store"})
+			return
+		} else {
+			api.sr.CreateStore(&store, &employee)
+			c.Set("user", employee)
+			c.JSON(http.StatusOK, gin.H{"message": "Created successfully"})
+		}
 	} else {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, errors.New("Unauthorized").Error())
 	}

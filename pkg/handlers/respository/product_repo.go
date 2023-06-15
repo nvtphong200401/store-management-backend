@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
 	"gorm.io/gorm"
@@ -20,12 +21,14 @@ type ProductRepository interface {
 }
 
 type productRepositoryImpl struct {
-	tx helpers.TxStore
+	tx          helpers.TxStore
+	redisClient *redis.Client
 }
 
-func NewProductRepository(gormClient *gorm.DB) ProductRepository {
+func NewProductRepository(gormClient *gorm.DB, redisClient *redis.Client) ProductRepository {
 	return &productRepositoryImpl{
-		tx: helpers.NewTXStore(gormClient),
+		tx:          helpers.NewTXStore(gormClient),
+		redisClient: redisClient,
 	}
 }
 
@@ -43,6 +46,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 	var products []models.Product
 	var totalItems int64 = 0
 	var totalPages int = 0
+
 	err := r.tx.ExecuteTX(func(db *gorm.DB) error {
 		// Count total items
 		db.Model(&models.Product{}).Count(&totalItems)

@@ -1,11 +1,15 @@
 package respository
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
 	"gorm.io/gorm"
@@ -20,12 +24,14 @@ type EmployeeRepository interface {
 	UpdateJoinRequest(storeID uint, employeeID uint, accept bool) (int, gin.H)
 }
 type employeeRepositoryImpl struct {
-	tx helpers.TxStore
+	tx          helpers.TxStore
+	redisClient *redis.Client
 }
 
-func NewEmployeeRepository(gormClient *gorm.DB) EmployeeRepository {
+func NewEmployeeRepository(gormClient *gorm.DB, redisClient *redis.Client) EmployeeRepository {
 	return &employeeRepositoryImpl{
-		tx: helpers.NewTXStore(gormClient),
+		tx:          helpers.NewTXStore(gormClient),
+		redisClient: redisClient,
 	}
 }
 
@@ -84,12 +90,34 @@ func (r *employeeRepositoryImpl) CreateStore(s *models.StoreModel, employee *mod
 
 func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	var store models.StoreModel
-	e := r.tx.ExecuteTX(func(db *gorm.DB) error {
-		return db.First(&store, storeID).Error
-	})
-	if e != nil {
+	key := fmt.Sprintf("%d", storeID)
+	// get data from redis
+	result, err := r.redisClient.Get(key).Result()
+
+	if err == redis.Nil {
+		// does not exist in redis, get it from postgres
+		e := r.tx.ExecuteTX(func(db *gorm.DB) error {
+			return db.First(&store, storeID).Error
+		})
+		if e != nil {
+			return nil
+		}
+		// set data to redis
+		data, _ := json.Marshal(store)
+		r.redisClient.Set(key, string(data), 0)
+	} else if err != nil {
+		// some error occured
+		log.Println("Some error" + err.Error())
+
 		return nil
+	} else {
+		// exist in redis
+		e := json.Unmarshal([]byte(result), &store)
+		if e != nil {
+			return nil
+		}
 	}
+
 	return &store
 }
 
