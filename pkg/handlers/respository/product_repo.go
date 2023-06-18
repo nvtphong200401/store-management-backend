@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
-	"github.com/nvtphong200401/store-management/pkg/helpers"
 	"gorm.io/gorm"
 )
 
@@ -17,18 +17,16 @@ type ProductRepository interface {
 	GetProducts(storeID uint, page int, limit int) (int, gin.H)
 	UpdateProduct(product *models.Product) error
 	DeleteProduct(id uint, storeID uint) error
-	SearchProduct(keyword string, storeID uint) []models.Product
+	SearchProduct(keyword string, storeID uint, page int, limit int) []models.Product
 }
 
 type productRepositoryImpl struct {
-	tx          helpers.TxStore
-	redisClient *redis.Client
+	tx *db.TxStore
 }
 
-func NewProductRepository(gormClient *gorm.DB, redisClient *redis.Client) ProductRepository {
+func NewProductRepository(tx *db.TxStore) ProductRepository {
 	return &productRepositoryImpl{
-		tx:          helpers.NewTXStore(gormClient),
-		redisClient: redisClient,
+		tx: tx,
 	}
 }
 
@@ -36,7 +34,7 @@ func (r *productRepositoryImpl) AddProduct(p *models.Product) error {
 	now := time.Now()
 	p.CreatedAt = now
 	p.UpdatedAt = now
-	return r.tx.ExecuteTX(func(db *gorm.DB) error {
+	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		db.AutoMigrate(&models.Product{})
 		return db.Create(&p).Error
 	})
@@ -47,7 +45,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 	var totalItems int64 = 0
 	var totalPages int = 0
 
-	err := r.tx.ExecuteTX(func(db *gorm.DB) error {
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
 		db.Model(&models.Product{}).Count(&totalItems)
 		// Retrieve paginated products
@@ -78,23 +76,21 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 
 func (r *productRepositoryImpl) UpdateProduct(product *models.Product) error {
 	product.UpdatedAt = time.Now()
-	return r.tx.ExecuteTX(func(db *gorm.DB) error {
+	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		return db.Save(&product).Error
 	})
 }
 
 func (r *productRepositoryImpl) DeleteProduct(id uint, storeID uint) error {
-	return r.tx.ExecuteTX(func(db *gorm.DB) error {
+	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		return db.Where("id = ? and store_id = ?", id, storeID).Delete(&models.Product{}).Error
 	})
 }
 
-func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint) []models.Product {
+func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page int, limit int) []models.Product {
 	var products []models.Product
-	keywordLike := "%" + keyword + "%"
-	log.Println(keywordLike)
-	err := r.tx.ExecuteTX(func(db *gorm.DB) error {
-		return db.Where("(product_name LIKE ? OR id = ?) AND store_id = ?", keywordLike, keyword, storeID).Find(&products).Error
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+		return db.Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Find(&products).Error
 	})
 
 	if err != nil {

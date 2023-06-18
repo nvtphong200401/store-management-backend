@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
-	"github.com/nvtphong200401/store-management/pkg/helpers"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -24,21 +24,19 @@ type EmployeeRepository interface {
 	UpdateJoinRequest(storeID uint, employeeID uint, accept bool) (int, gin.H)
 }
 type employeeRepositoryImpl struct {
-	tx          helpers.TxStore
-	redisClient *redis.Client
+	tx *db.TxStore
 }
 
-func NewEmployeeRepository(gormClient *gorm.DB, redisClient *redis.Client) EmployeeRepository {
+func NewEmployeeRepository(tx *db.TxStore) EmployeeRepository {
 	return &employeeRepositoryImpl{
-		tx:          helpers.NewTXStore(gormClient),
-		redisClient: redisClient,
+		tx: tx,
 	}
 }
 
 func (r *employeeRepositoryImpl) JoinStore(storeID uint, employee models.Employee) (int, gin.H) {
 
 	// if err :=
-	e := r.tx.ExecuteTX(func(db *gorm.DB) error {
+	e := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		var request models.JoinRequest
 		err := db.Clauses(clause.Locking{Strength: "FOR NO KEY UPDATE"}).Where("Store_ID = ? AND Employee_ID = ?", storeID, employee.ID).Find(&request).Error
 		if err != nil {
@@ -74,7 +72,7 @@ func (r *employeeRepositoryImpl) CreateStore(s *models.StoreModel, employee *mod
 	s.CreatedAt = now
 	s.UpdatedAt = now
 
-	return r.tx.ExecuteTX(func(db *gorm.DB) error {
+	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		db.AutoMigrate(&models.StoreModel{})
 		if err := db.Create(&s).Error; err != nil {
 			return err
@@ -92,30 +90,30 @@ func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	var store models.StoreModel
 	key := fmt.Sprintf("%d", storeID)
 	// get data from redis
-	result, err := r.redisClient.Get(key).Result()
 
-	if err == redis.Nil {
-		// does not exist in redis, get it from postgres
-		e := r.tx.ExecuteTX(func(db *gorm.DB) error {
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+		result, e := rd.Get(key).Result()
+		if e == redis.Nil { // does not exist in redis, get it from postgres
+			// set data to redis
+			data, _ := json.Marshal(store)
+			rd.Set(key, string(data), 0)
 			return db.First(&store, storeID).Error
-		})
-		if e != nil {
-			return nil
-		}
-		// set data to redis
-		data, _ := json.Marshal(store)
-		r.redisClient.Set(key, string(data), 0)
-	} else if err != nil {
-		// some error occured
-		log.Println("Some error" + err.Error())
+		} else if e != nil {
+			// some error occured
+			log.Println("Some error" + e.Error())
 
-		return nil
-	} else {
-		// exist in redis
-		e := json.Unmarshal([]byte(result), &store)
-		if e != nil {
 			return nil
+		} else {
+			// exist in redis
+			e := json.Unmarshal([]byte(result), &store)
+			if e != nil {
+				return nil
+			}
 		}
+		return e
+	})
+	if err != nil {
+		return nil
 	}
 
 	return &store
@@ -123,7 +121,7 @@ func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 
 func (r *employeeRepositoryImpl) GetJoinRequest(storeID uint) (int, gin.H) {
 	var joinRequests []models.JoinRequest
-	err := r.tx.ExecuteTX(func(db *gorm.DB) error {
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		return db.Where("store_id = ?", storeID).Preload("Employee").Find(&joinRequests).Error
 	})
 	if err != nil {
@@ -140,7 +138,7 @@ func (r *employeeRepositoryImpl) UpdateJoinRequest(storeID uint, employeeID uint
 	} else {
 		status = models.DeniedStatus
 	}
-	e := r.tx.ExecuteTX(func(db *gorm.DB) error {
+	e := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		if err := db.Model(&models.JoinRequest{}).Where("store_id = ? and employee_id = ? and status = ?", storeID, employeeID, models.PendingStatus).Update("status", status).Error; err != nil {
 			return err
 		}

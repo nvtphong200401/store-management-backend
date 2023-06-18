@@ -5,12 +5,19 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-func SetUp() *gorm.DB {
+var db *gorm.DB
+var redisClient *redis.Client
+
+func SetUp() (*gorm.DB, *redis.Client) {
+	if db != nil && redisClient != nil {
+		return db, redisClient
+	}
 	var err error
 	err = godotenv.Load()
 	if err != nil {
@@ -31,5 +38,11 @@ func SetUp() *gorm.DB {
 		log.Fatalf("models.Setup err: %v", err)
 	}
 
-	return db
+	rd := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	return db, rd
 }

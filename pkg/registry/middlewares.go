@@ -7,6 +7,6 @@ import (
 
 func (r *registry) NewMiddleware() middleware.Middleware {
 	return middleware.NewMiddleware(
-		respository.NewAuthRepositopry(r.db),
+		respository.NewAuthRepositopry(r.tx),
 	)
 }

@@ -1,23 +1,20 @@
 package registry
 
 import (
-	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/handlers/controller"
-	"gorm.io/gorm"
+	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 )
 
 type Registry interface {
 	NewAppController() controller.AppController
 }
 type registry struct {
-	db          *gorm.DB
-	redisClient *redis.Client
+	tx *db.TxStore
 }
 
-func NewRegistry(db *gorm.DB, redisClient *redis.Client) Registry {
+func NewRegistry(tx db.TxStore) Registry {
 	return &registry{
-		db:          db,
-		redisClient: redisClient,
+		tx: &tx,
 	}
 }
 

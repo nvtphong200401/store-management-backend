@@ -7,7 +7,7 @@ import (
 
 func (r *registry) NewProductController() api.ProductAPI {
 	p := api.NewProductAPI(
-		respository.NewProductRepository(r.db, r.redisClient),
+		respository.NewProductRepository(r.tx),
 	)
 
 	return p
@@ -15,7 +15,7 @@ func (r *registry) NewProductController() api.ProductAPI {
 
 func (r *registry) NewAuthController() api.AuthAPI {
 	a := api.NewAuthAPI(
-		respository.NewAuthRepositopry(r.db),
+		respository.NewAuthRepositopry(r.tx),
 	)
 
 	return a
@@ -23,7 +23,7 @@ func (r *registry) NewAuthController() api.AuthAPI {
 
 func (r *registry) NewSaleController() api.SaleAPI {
 	a := api.NewSaleAPI(
-		respository.NewSaleRepository(r.db),
+		respository.NewSaleRepository(r.tx),
 	)
 
 	return a
@@ -31,7 +31,7 @@ func (r *registry) NewSaleController() api.SaleAPI {
 
 func (r *registry) NewEmployeeController() api.EmployeeAPI {
 	a := api.NewEmployeeAPI(
-		respository.NewEmployeeRepository(r.db, r.redisClient),
+		respository.NewEmployeeRepository(r.tx),
 	)
 
 	return a

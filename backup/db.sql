@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 15.3
--- Dumped by pg_dump version 15.3
+-- Dumped from database version 15.1
+-- Dumped by pg_dump version 15.1
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -30,6 +30,20 @@ ALTER SCHEMA public OWNER TO root;
 --
 
 COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
 
 
 SET default_tablespace = '';
@@ -300,7 +314,7 @@ COPY public.join_requests (employee_id, store_id, status) FROM stdin;
 --
 
 COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price, stock, store_id) FROM stdin;
-1	2023-05-23 06:31:43.828697+00	2023-05-23 06:31:43.828697+00	\N	Mi Hao Hao	Mi an lien	5000	0	1
+1	0001-01-01 00:00:00+00	2023-06-16 15:04:04.710691+00	\N	Mì Hảo Hảo chua cay	Mi an lien	10000	10	1
 \.
 
 
@@ -459,6 +473,27 @@ CREATE INDEX idx_sale_models_deleted_at ON public.sale_models USING btree (delet
 --
 
 CREATE INDEX idx_store_models_deleted_at ON public.store_models USING btree (deleted_at);
+
+
+--
+-- Name: products_name_idx; Type: INDEX; Schema: public; Owner: root
+--
+
+CREATE INDEX products_name_idx ON public.products USING gin (product_name public.gin_trgm_ops);
+
+
+--
+-- Name: products_name_trigram_idx; Type: INDEX; Schema: public; Owner: root
+--
+
+CREATE INDEX products_name_trigram_idx ON public.products USING gin (product_name public.gin_trgm_ops);
+
+
+--
+-- Name: products_product_name_idx; Type: INDEX; Schema: public; Owner: root
+--
+
+CREATE INDEX products_product_name_idx ON public.products USING gin (product_name public.gin_trgm_ops);
 
 
 --
