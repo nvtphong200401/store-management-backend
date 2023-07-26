@@ -29,8 +29,8 @@ func NewProductAPI(ps respository.ProductRepository) ProductAPI {
 }
 
 func (api *productAPIImpl) InsertProduct(c *gin.Context) {
-	var product models.Product
-	err := c.BindJSON(&product)
+	var products []models.Product
+	err := c.BindJSON(&products)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -39,15 +39,18 @@ func (api *productAPIImpl) InsertProduct(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	product.StoreID = employee.StoreID
-	api.ps.AddProduct(&product)
+	for index := range products {
+		products[index].StoreID = employee.StoreID
+	}
+	// product.StoreID = employee.StoreID
+	api.ps.AddProduct(products)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, product)
+	c.JSON(http.StatusCreated, products)
 }
 
 func (api *productAPIImpl) ListProduct(c *gin.Context) {
@@ -128,6 +131,17 @@ func (api *productAPIImpl) SearchProduct(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	result := api.ps.SearchProduct(body.Keyword, employee.StoreID)
-	c.JSON(http.StatusOK, gin.H{"result": result})
+
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(c.Query("limit"))
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	statusCode, metadata := api.ps.SearchProduct(body.Keyword, employee.StoreID, page, limit)
+	c.JSON(statusCode, metadata)
 }

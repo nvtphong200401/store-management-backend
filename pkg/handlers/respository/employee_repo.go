@@ -1,10 +1,8 @@
 package respository
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -22,6 +20,7 @@ type EmployeeRepository interface {
 	GetStoreInfo(storeID uint) *models.StoreModel
 	GetJoinRequest(storeID uint) (int, gin.H)
 	UpdateJoinRequest(storeID uint, employeeID uint, accept bool) (int, gin.H)
+	GetStores() (int, gin.H)
 }
 type employeeRepositoryImpl struct {
 	tx *db.TxStore
@@ -30,6 +29,20 @@ type employeeRepositoryImpl struct {
 func NewEmployeeRepository(tx *db.TxStore) EmployeeRepository {
 	return &employeeRepositoryImpl{
 		tx: tx,
+	}
+}
+
+func (r *employeeRepositoryImpl) GetStores() (int, gin.H) {
+	var stores []models.StoreModel
+
+	e := r.tx.ReadData("store", &stores, func(db *gorm.DB) error {
+		return db.Find(&stores).Error
+	})
+	if e != nil {
+		return http.StatusInternalServerError, gin.H{"error": e.Error()}
+	}
+	return http.StatusOK, gin.H{
+		"data": stores,
 	}
 }
 
@@ -88,30 +101,39 @@ func (r *employeeRepositoryImpl) CreateStore(s *models.StoreModel, employee *mod
 
 func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	var store models.StoreModel
+
 	key := fmt.Sprintf("%d", storeID)
+	err := r.tx.ReadData(key, &store, func(db *gorm.DB) error {
+		return db.First(&store, storeID).Error
+	})
+
 	// get data from redis
 
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		result, e := rd.Get(key).Result()
-		if e == redis.Nil { // does not exist in redis, get it from postgres
-			// set data to redis
-			data, _ := json.Marshal(store)
-			rd.Set(key, string(data), 0)
-			return db.First(&store, storeID).Error
-		} else if e != nil {
-			// some error occured
-			log.Println("Some error" + e.Error())
+	// err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	// 	result, e := rd.Get(key).Result()
+	// 	if e == redis.Nil { // does not exist in redis, get it from postgres
+	// 		e = db.First(&store, storeID).Error
+	// 		if e != nil {
+	// 			return e
+	// 		}
+	// 		// set data to redis
+	// 		data, _ := json.Marshal(store)
+	// 		rd.Set(key, string(data), 3600)
+	// 		return nil
+	// 	} else if e != nil {
+	// 		// some error occured
+	// 		log.Println("Some error" + e.Error())
 
-			return nil
-		} else {
-			// exist in redis
-			e := json.Unmarshal([]byte(result), &store)
-			if e != nil {
-				return nil
-			}
-		}
-		return e
-	})
+	// 		return nil
+	// 	} else {
+	// 		// exist in redis
+	// 		e := json.Unmarshal([]byte(result), &store)
+	// 		if e != nil {
+	// 			return nil
+	// 		}
+	// 	}
+	// 	return e
+	// })
 	if err != nil {
 		return nil
 	}

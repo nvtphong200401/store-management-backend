@@ -55,6 +55,7 @@ func storeRouter(apiStore *gin.RouterGroup, c controller.AppController) {
 
 	apiStore.POST("", c.Employee.CreateStore)
 	apiStore.POST("/:id", c.Employee.JoinStore)
+	apiStore.GET("/list", c.Employee.GetStores)
 
 	apiStore.Use(c.Middleware.StoreMiddleware(), c.Middleware.OwnerMiddleware())
 	{

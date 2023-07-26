@@ -21,6 +21,7 @@ type EmployeeAPI interface {
 	GetStoreInfo(c *gin.Context)
 	GetJoinRequest(c *gin.Context)
 	UpdateJoinRequest(c *gin.Context)
+	GetStores(c *gin.Context)
 }
 
 type employeeAPIImpl struct {
@@ -32,7 +33,11 @@ func NewEmployeeAPI(er respository.EmployeeRepository) EmployeeAPI {
 		sr: er,
 	}
 }
-
+func (api *employeeAPIImpl) GetStores(c *gin.Context) {
+	//TODO: get store from repository
+	code, repsonse := api.sr.GetStores()
+	c.JSON(code, repsonse)
+}
 func (api *employeeAPIImpl) CreateStore(c *gin.Context) {
 	var store models.StoreModel
 	err := c.BindJSON(&store)

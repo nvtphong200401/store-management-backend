@@ -11,7 +11,7 @@ import (
 )
 
 type SaleRepository interface {
-	PurchaseItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H)
+	SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H)
 	GetSaleByID(id uint, storeID uint) (int, gin.H)
 	GetSales(storeID uint) (int, gin.H)
 }
@@ -39,7 +39,7 @@ func (r *saleRepositoryImpl) createSale(storeID uint, employeeID uint, totalPric
 	return sale.ID, nil
 }
 
-func (r *saleRepositoryImpl) PurchaseItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H) {
+func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H) {
 	totalPrice := r.calculateTotalPrice(items)
 	saleid, err := r.createSale(storeID, employeeID, totalPrice)
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem) float6
 		if err != nil {
 			return 0
 		}
-		total += product.Price * float64(item.Quantity)
+		total += product.PriceOut * float64(item.Quantity)
 	}
 	return total
 }

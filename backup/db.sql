@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 15.1
--- Dumped by pg_dump version 15.1
+-- Dumped from database version 15.3
+-- Dumped by pg_dump version 15.3
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -115,7 +115,9 @@ CREATE TABLE public.products (
     category text,
     price numeric,
     stock bigint,
-    store_id bigint NOT NULL
+    store_id bigint NOT NULL,
+    price_in numeric,
+    price_out numeric
 );
 
 
@@ -313,8 +315,11 @@ COPY public.join_requests (employee_id, store_id, status) FROM stdin;
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: root
 --
 
-COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price, stock, store_id) FROM stdin;
-1	0001-01-01 00:00:00+00	2023-06-16 15:04:04.710691+00	\N	Mì Hảo Hảo chua cay	Mi an lien	10000	10	1
+COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price, stock, store_id, price_in, price_out) FROM stdin;
+2	2023-07-25 10:13:52.188476+00	2023-07-25 10:13:52.188476+00	\N	Mi Hao Hao	Mi an lien	\N	0	1	5000	10000
+1	0001-01-01 00:00:00+00	2023-07-25 10:14:12.624275+00	\N	Mi Hao Hao chua cay	Mi an lien	10000	10	1	5000	10000
+3	2023-07-26 04:58:21.179383+00	2023-07-26 04:58:21.179383+00	\N	Mi Hao Hao	Mi an lien	\N	5	1	5000	10000
+4	2023-07-26 06:16:51.80351+00	2023-07-26 06:16:51.80351+00	\N	Phong test		\N	4	1	1000	10000
 \.
 
 
@@ -325,6 +330,7 @@ COPY public.products (id, created_at, updated_at, deleted_at, product_name, cate
 COPY public.sale_items (id, created_at, updated_at, deleted_at, sale_id, product_id, quantity) FROM stdin;
 1	2023-05-23 07:16:35.810871+00	2023-05-23 07:16:35.810871+00	\N	3	1	2
 2	2023-05-23 07:26:27.58943+00	2023-05-23 07:26:27.58943+00	\N	4	1	2
+3	2023-07-26 07:16:40.164527+00	2023-07-26 07:16:40.164527+00	\N	5	1	2
 \.
 
 
@@ -337,6 +343,7 @@ COPY public.sale_models (id, created_at, updated_at, deleted_at, store_id, emplo
 2	2023-05-23 07:14:42.730001+00	2023-05-23 07:14:42.730001+00	\N	1	1	10000
 3	2023-05-23 07:16:35.71541+00	2023-05-23 07:16:35.71541+00	\N	1	1	10000
 4	2023-05-23 07:26:27.477665+00	2023-05-23 07:26:27.477665+00	\N	1	1	10000
+5	2023-07-26 07:16:40.047546+00	2023-07-26 07:16:40.047546+00	\N	1	1	20000
 \.
 
 
@@ -360,21 +367,21 @@ SELECT pg_catalog.setval('public.employees_id_seq', 2, true);
 -- Name: products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.products_id_seq', 1, true);
+SELECT pg_catalog.setval('public.products_id_seq', 2, true);
 
 
 --
 -- Name: sale_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.sale_items_id_seq', 2, true);
+SELECT pg_catalog.setval('public.sale_items_id_seq', 3, true);
 
 
 --
 -- Name: sale_models_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.sale_models_id_seq', 4, true);
+SELECT pg_catalog.setval('public.sale_models_id_seq', 5, true);
 
 
 --

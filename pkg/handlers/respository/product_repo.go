@@ -1,7 +1,6 @@
 package respository
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -13,11 +12,11 @@ import (
 )
 
 type ProductRepository interface {
-	AddProduct(p *models.Product) error
+	AddProduct(p []models.Product) error
 	GetProducts(storeID uint, page int, limit int) (int, gin.H)
 	UpdateProduct(product *models.Product) error
 	DeleteProduct(id uint, storeID uint) error
-	SearchProduct(keyword string, storeID uint, page int, limit int) []models.Product
+	SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H)
 }
 
 type productRepositoryImpl struct {
@@ -30,13 +29,15 @@ func NewProductRepository(tx *db.TxStore) ProductRepository {
 	}
 }
 
-func (r *productRepositoryImpl) AddProduct(p *models.Product) error {
+func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
 	now := time.Now()
-	p.CreatedAt = now
-	p.UpdatedAt = now
+	for index := range p {
+		p[index].CreatedAt = now
+		p[index].UpdatedAt = now
+	}
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		db.AutoMigrate(&models.Product{})
-		return db.Create(&p).Error
+		return db.Create(p).Error
 	})
 }
 
@@ -68,7 +69,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 		"totalItems":  totalItems,
 		"totalPages":  totalPages,
 		"currentPage": page,
-		"products":    products,
+		"data":        products,
 	}
 
 	return http.StatusOK, metadata
@@ -87,15 +88,37 @@ func (r *productRepositoryImpl) DeleteProduct(id uint, storeID uint) error {
 	})
 }
 
-func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page int, limit int) []models.Product {
+func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H) {
 	var products []models.Product
+	var totalItems int64 = 0
+	var totalPages int = 0
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Find(&products).Error
+		// Count total items
+		db.Model(&models.Product{}).Count(&totalItems)
+		// Retrieve paginated products
+		offset := (page - 1) * limit
+
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Find(&products).Error; err != nil {
+			return err
+		}
+		// Calculate total pages
+		totalPages = int(int(totalItems)/limit) + 1
+		return nil
 	})
 
 	if err != nil {
-		log.Println(err.Error())
-		return []models.Product{}
+		return http.StatusInternalServerError, gin.H{
+			"error": err,
+		}
 	}
-	return products
+
+	// Prepare metadata
+	metadata := gin.H{
+		"totalItems":  totalItems,
+		"totalPages":  totalPages,
+		"currentPage": page,
+		"data":        products,
+	}
+
+	return http.StatusOK, metadata
 }

@@ -39,7 +39,7 @@ func (api *saleAPIImpl) CreateSale(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	statusCode, response := api.ss.PurchaseItems(items, employee.ID, employee.StoreID)
+	statusCode, response := api.ss.SellItems(items, employee.ID, employee.StoreID)
 
 	c.JSON(statusCode, response)
 }
