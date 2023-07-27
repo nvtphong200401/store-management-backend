@@ -15,6 +15,6 @@ type SaleItem struct {
 	gorm.Model
 	SaleID    uint      `json:"SaleID,-"`
 	Sale      SaleModel `gorm:"foreignKey:SaleID"`
-	ProductID uint      `json:"ProductID,omitempty"`
-	Quantity  uint      `json:"Quantity"`
+	ProductID uint      `json:"ID,omitempty"` // product ID
+	Stock     uint      `json:"Stock"`
 }

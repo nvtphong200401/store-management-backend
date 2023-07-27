@@ -13,7 +13,7 @@ import (
 type SaleRepository interface {
 	SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H)
 	GetSaleByID(id uint, storeID uint) (int, gin.H)
-	GetSales(storeID uint) (int, gin.H)
+	GetSales(storeID uint, page, limit int) (int, gin.H)
 }
 
 type saleRepositoryImpl struct {
@@ -59,7 +59,7 @@ func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint,
 		return http.StatusInternalServerError, gin.H{"error": err}
 	}
 
-	return http.StatusOK, gin.H{"SaleID": saleid, "Total Price": totalPrice}
+	return http.StatusOK, gin.H{"ID": saleid, "TotalPrice": totalPrice}
 }
 
 func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem) float64 {
@@ -72,7 +72,7 @@ func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem) float6
 		if err != nil {
 			return 0
 		}
-		total += product.PriceOut * float64(item.Quantity)
+		total += product.PriceOut * float64(item.Stock)
 	}
 	return total
 }
@@ -102,17 +102,34 @@ func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (int, gin.H) {
 	}
 }
 
-func (r *saleRepositoryImpl) GetSales(storeID uint) (int, gin.H) {
+func (r *saleRepositoryImpl) GetSales(storeID uint, page, limit int) (int, gin.H) {
 	var sales []models.SaleModel
+	var totalItems int64 = 0
+	var totalPages int = 0
 
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("store_id = ?", storeID).Find(&sales).Error
+		// Count total items
+		db.Model(&models.SaleModel{}).Count(&totalItems)
+		// Retrieve paginated products
+		offset := (page - 1) * limit
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Find(&sales).Error; err != nil {
+			return err
+		}
+		// Calculate total pages
+		totalPages = int(int(totalItems)/limit) + 1
+		return nil
 	})
 	if err != nil {
 		return http.StatusBadRequest, gin.H{"error": err}
 	}
 
-	return http.StatusOK, gin.H{
-		"sales": sales,
+	// Prepare metadata
+	metadata := gin.H{
+		"totalItems":  totalItems,
+		"totalPages":  totalPages,
+		"currentPage": page,
+		"data":        sales,
 	}
+
+	return http.StatusOK, metadata
 }
