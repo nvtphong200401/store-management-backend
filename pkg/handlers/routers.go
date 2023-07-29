@@ -45,8 +45,8 @@ func productRouter(apiProduct *gin.RouterGroup, c controller.AppController) {
 
 	apiProduct.POST("", c.Product.InsertProduct)
 	apiProduct.GET("", c.Product.ListProduct)
-	apiProduct.PUT("/:id", c.Product.UpdateProduct)
-	apiProduct.DELETE("/:id", c.Product.DeleteProduct)
+	apiProduct.PUT("", c.Product.UpdateProduct)
+	apiProduct.DELETE("", c.Product.DeleteProduct)
 	apiProduct.GET("/search", c.Product.SearchProduct)
 
 }

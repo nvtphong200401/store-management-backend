@@ -43,7 +43,7 @@ func (api *productAPIImpl) InsertProduct(c *gin.Context) {
 		products[index].StoreID = employee.StoreID
 	}
 	// product.StoreID = employee.StoreID
-	api.ps.AddProduct(products)
+	err = api.ps.AddProduct(products)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -73,34 +73,32 @@ func (api *productAPIImpl) ListProduct(c *gin.Context) {
 }
 
 func (api *productAPIImpl) UpdateProduct(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	var products []models.Product
+	err := c.BindJSON(&products)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
 		return
 	}
-	var product models.Product
-
-	if err = c.ShouldBindBodyWith(&product, binding.JSON); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid format"})
-		return
-	}
 
 	employee, err := helpers.GetEmployee(c)
 	if err != nil {
 		return
 	}
-	product.ID = uint(id)
-	product.StoreID = employee.StoreID
 
-	if err = api.ps.UpdateProduct(&product); err != nil {
+	for index := range products {
+		products[index].StoreID = employee.StoreID
+	}
+
+	if err = api.ps.UpdateProduct(products); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Cannot update product"})
 		return
 	}
-	c.JSON(http.StatusOK, product)
+	c.JSON(http.StatusOK, products)
 }
 
 func (api *productAPIImpl) DeleteProduct(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	var products []models.Product
+	err := c.BindJSON(&products)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -110,12 +108,16 @@ func (api *productAPIImpl) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	err = api.ps.DeleteProduct(uint(id), employee.StoreID)
+	for index := range products {
+		products[index].StoreID = employee.StoreID
+	}
+
+	err = api.ps.DeleteProduct(products)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, id)
+	c.JSON(http.StatusOK, products)
 }
 
 func (api *productAPIImpl) SearchProduct(c *gin.Context) {

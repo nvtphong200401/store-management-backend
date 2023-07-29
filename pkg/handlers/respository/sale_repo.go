@@ -90,15 +90,15 @@ func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (int, gin.H) {
 
 	var items []models.SaleItem
 	err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("Sale_ID = ?", id).Find(&items).Error
+		return db.Where("Sale_ID = ?", id).Preload("Product").Find(&items).Error
 	})
 
 	if err != nil {
 		return http.StatusBadRequest, gin.H{"error": err}
 	}
 	return http.StatusOK, gin.H{
-		"items":       items,
-		"total_price": sale.TotalPrice,
+		"Items":      items,
+		"TotalPrice": sale.TotalPrice,
 	}
 }
 

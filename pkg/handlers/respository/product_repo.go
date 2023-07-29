@@ -14,8 +14,8 @@ import (
 type ProductRepository interface {
 	AddProduct(p []models.Product) error
 	GetProducts(storeID uint, page int, limit int) (int, gin.H)
-	UpdateProduct(product *models.Product) error
-	DeleteProduct(id uint, storeID uint) error
+	UpdateProduct(p []models.Product) error
+	DeleteProduct(p []models.Product) error
 	SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H)
 }
 
@@ -30,14 +30,28 @@ func NewProductRepository(tx *db.TxStore) ProductRepository {
 }
 
 func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
-	now := time.Now()
-	for index := range p {
-		p[index].CreatedAt = now
-		p[index].UpdatedAt = now
-	}
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+		now := time.Now()
 		db.AutoMigrate(&models.Product{})
-		return db.Create(p).Error
+		// First, try to find the existing product by ID, including soft-deleted records
+		var existingProduct models.Product
+		for _, product := range p {
+			product.CreatedAt = now
+			product.UpdatedAt = now
+			if err := db.Unscoped().Where("id = ?", product.ID).First(&existingProduct).Error; err != nil {
+				// If the product doesn't exist (including soft-deleted), create it
+				if err = db.Create(product).Error; err != nil {
+					return err
+				}
+			}
+
+			// If the product exists, update it with the new data
+			if err := db.Model(&existingProduct).Updates(product).Error; err != nil {
+				return err
+			}
+
+		}
+		return nil
 	})
 }
 
@@ -51,7 +65,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 		db.Model(&models.Product{}).Count(&totalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
-		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Find(&products).Error; err != nil {
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Order("ID").Find(&products).Error; err != nil {
 			return err
 		}
 		// Calculate total pages
@@ -75,16 +89,24 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 	return http.StatusOK, metadata
 }
 
-func (r *productRepositoryImpl) UpdateProduct(product *models.Product) error {
-	product.UpdatedAt = time.Now()
+func (r *productRepositoryImpl) UpdateProduct(products []models.Product) error {
+	for index := range products {
+		products[index].UpdatedAt = time.Now()
+	}
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Save(&product).Error
+		return db.Save(products).Error
 	})
 }
 
-func (r *productRepositoryImpl) DeleteProduct(id uint, storeID uint) error {
+func (r *productRepositoryImpl) DeleteProduct(p []models.Product) error {
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("id = ? and store_id = ?", id, storeID).Delete(&models.Product{}).Error
+		for _, prod := range p {
+
+			if err := db.Where("id = ? and store_id = ?", prod.ID, prod.StoreID).Delete(&models.Product{}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
