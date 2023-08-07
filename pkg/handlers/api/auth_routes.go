@@ -51,7 +51,7 @@ func (api *authAPIImpl) SignUp(c *gin.Context) {
 		return
 	}
 	if err := api.as.SignUp(credentials.Username, credentials.Password); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Cannot create user"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "success"})

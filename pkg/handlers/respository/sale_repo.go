@@ -41,25 +41,38 @@ func (r *saleRepositoryImpl) createSale(storeID uint, employeeID uint, totalPric
 
 func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H) {
 	totalPrice := r.calculateTotalPrice(items)
-	saleid, err := r.createSale(storeID, employeeID, totalPrice)
-	if err != nil {
-		return http.StatusInternalServerError, gin.H{"error": err}
+
+	sale := models.SaleModel{
+		StoreID:    storeID,
+		EmployeeID: employeeID,
+		TotalPrice: totalPrice,
+		SaleItems:  items,
 	}
-
-	err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+		db.AutoMigrate(&models.SaleModel{})
 		db.AutoMigrate(&models.SaleItem{})
-		for index := range items {
-			items[index].SaleID = saleid
-
-		}
-		return db.Create(items).Error
+		return db.Create(&sale).Error
 	})
 
+	// saleid, err := r.createSale(storeID, employeeID, totalPrice)
 	if err != nil {
 		return http.StatusInternalServerError, gin.H{"error": err}
 	}
 
-	return http.StatusOK, gin.H{"ID": saleid, "TotalPrice": totalPrice}
+	// err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	// 	db.AutoMigrate(&models.SaleItem{})
+	// 	for index := range items {
+	// 		items[index].SaleID = saleid
+
+	// 	}
+	// 	return db.Create(items).Error
+	// })
+
+	if err != nil {
+		return http.StatusInternalServerError, gin.H{"error": err}
+	}
+
+	return http.StatusOK, gin.H{"ID": sale.ID, "TotalPrice": totalPrice}
 }
 
 func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem) float64 {
@@ -90,7 +103,17 @@ func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (int, gin.H) {
 
 	var items []models.SaleItem
 	err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("Sale_ID = ?", id).Preload("Product").Find(&items).Error
+		if err = db.Where("Sale_ID = ?", id).Preload("Product").Find(&items).Error; err != nil {
+			return err
+		}
+		for index, value := range items {
+			var product models.Product
+			if err = db.Where("ID = ?", value.ProductID).First(&product).Error; err != nil {
+				return err
+			}
+			items[index].Product = product
+		}
+		return nil
 	})
 
 	if err != nil {
@@ -103,9 +126,9 @@ func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (int, gin.H) {
 }
 
 func (r *saleRepositoryImpl) GetSales(storeID uint, page, limit int) (int, gin.H) {
-	var sales []models.SaleModel
+	var sales []models.SaleModel = make([]models.SaleModel, 0)
 	var totalItems int64 = 0
-	var totalPages int = 0
+	var totalPages int = 1
 
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
@@ -119,17 +142,17 @@ func (r *saleRepositoryImpl) GetSales(storeID uint, page, limit int) (int, gin.H
 		totalPages = int(int(totalItems)/limit) + 1
 		return nil
 	})
-	if err != nil {
-		return http.StatusBadRequest, gin.H{"error": err}
-	}
-
-	// Prepare metadata
 	metadata := gin.H{
 		"totalItems":  totalItems,
 		"totalPages":  totalPages,
 		"currentPage": page,
 		"data":        sales,
 	}
+	if err != nil {
+		return http.StatusBadRequest, metadata
+	}
+
+	// Prepare metadata
 
 	return http.StatusOK, metadata
 }

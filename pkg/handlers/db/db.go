@@ -32,7 +32,9 @@ func SetUp() (*gorm.DB, *redis.Client) {
 	// Construct connection string
 	dsn := fmt.Sprintf("host=%v port=%s user=%v password=%v dbname=%v sslmode=disable", host, port, user, password, dbname)
 	// dsn := "postgresql://phong:oV9rXZjpWTpD4yUHLb9Hyw@marsh-wren-4775.8nk.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 
 	if err != nil {
 		log.Fatalf("models.Setup err: %v", err)

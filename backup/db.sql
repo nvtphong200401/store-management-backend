@@ -90,19 +90,6 @@ ALTER SEQUENCE public.employees_id_seq OWNED BY public.employees.id;
 
 
 --
--- Name: join_requests; Type: TABLE; Schema: public; Owner: root
---
-
-CREATE TABLE public.join_requests (
-    employee_id bigint NOT NULL,
-    store_id bigint NOT NULL,
-    status text DEFAULT 'pending'::text
-);
-
-
-ALTER TABLE public.join_requests OWNER TO root;
-
---
 -- Name: products; Type: TABLE; Schema: public; Owner: root
 --
 
@@ -113,11 +100,10 @@ CREATE TABLE public.products (
     deleted_at timestamp with time zone,
     product_name text,
     category text,
-    price numeric,
-    stock bigint,
-    store_id bigint NOT NULL,
     price_in numeric,
-    price_out numeric
+    price_out numeric,
+    stock bigint,
+    store_id bigint NOT NULL
 );
 
 
@@ -149,39 +135,16 @@ ALTER SEQUENCE public.products_id_seq OWNED BY public.products.id;
 --
 
 CREATE TABLE public.sale_items (
-    id bigint NOT NULL,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
+    sale_id bigint NOT NULL,
+    product_id bigint NOT NULL,
+    stock bigint,
     deleted_at timestamp with time zone,
-    sale_id bigint,
-    product_id bigint,
-    quantity bigint,
-    stock bigint
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
 );
 
 
 ALTER TABLE public.sale_items OWNER TO root;
-
---
--- Name: sale_items_id_seq; Type: SEQUENCE; Schema: public; Owner: root
---
-
-CREATE SEQUENCE public.sale_items_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.sale_items_id_seq OWNER TO root;
-
---
--- Name: sale_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root
---
-
-ALTER SEQUENCE public.sale_items_id_seq OWNED BY public.sale_items.id;
-
 
 --
 -- Name: sale_models; Type: TABLE; Schema: public; Owner: root
@@ -273,13 +236,6 @@ ALTER TABLE ONLY public.products ALTER COLUMN id SET DEFAULT nextval('public.pro
 
 
 --
--- Name: sale_items id; Type: DEFAULT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.sale_items ALTER COLUMN id SET DEFAULT nextval('public.sale_items_id_seq'::regclass);
-
-
---
 -- Name: sale_models id; Type: DEFAULT; Schema: public; Owner: root
 --
 
@@ -298,17 +254,7 @@ ALTER TABLE ONLY public.store_models ALTER COLUMN id SET DEFAULT nextval('public
 --
 
 COPY public.employees (id, created_at, updated_at, deleted_at, username, password, store_id, "position") FROM stdin;
-1	2023-05-23 06:24:00.17537+00	2023-05-23 06:24:04.42433+00	\N	phongdz	\\x243261243130247630497748765245756132476e645252617a666c4b6533482e796b496d385943387a464a72794b4d386f58524c37465654684c5132	1	owner
-2	2023-05-23 08:48:31.518098+00	2023-05-24 03:19:03.467027+00	\N	phongdz1	\\x243261243130246b39584c34494351544648656a38556e73542e4d592e705a434b48685a413930693057495a436f787a3373477749574d6464665a4b	1	staff
-\.
-
-
---
--- Data for Name: join_requests; Type: TABLE DATA; Schema: public; Owner: root
---
-
-COPY public.join_requests (employee_id, store_id, status) FROM stdin;
-2	1	accepted
+1	2023-08-03 08:33:01.771677+00	2023-08-03 08:51:56.237636+00	\N	phongdz	\\x2432612431302439564a5144625031635078705746506c6c4b6a7a326564784e594861676f70503779416931775058354f723252475848504547344b	1	owner
 \.
 
 
@@ -316,22 +262,12 @@ COPY public.join_requests (employee_id, store_id, status) FROM stdin;
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: root
 --
 
-COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price, stock, store_id, price_in, price_out) FROM stdin;
-2	2023-07-25 10:13:52.188476+00	2023-07-25 10:13:52.188476+00	\N	Mi Hao Hao	Mi an lien	\N	0	1	5000	10000
-1	0001-01-01 00:00:00+00	2023-07-25 10:14:12.624275+00	\N	Mi Hao Hao chua cay	Mi an lien	10000	10	1	5000	10000
-3	2023-07-26 04:58:21.179383+00	2023-07-26 04:58:21.179383+00	\N	Mi Hao Hao	Mi an lien	\N	5	1	5000	10000
-4	2023-07-26 06:16:51.80351+00	2023-07-26 06:16:51.80351+00	\N	Phong test		\N	4	1	1000	10000
-5	2023-07-26 09:57:28.685967+00	2023-07-26 09:57:28.685967+00	\N	Mi Hao Hao	Mi an lien	\N	5	1	5000	10000
-6	2023-07-26 09:57:47.013506+00	2023-07-26 09:57:47.013506+00	\N	Mi Hao Hao	Mi an lien	\N	5	1	5000	10000
-7	2023-07-26 09:57:47.013506+00	2023-07-26 09:57:47.013506+00	\N	Mi Hao Hao	Mi an lien	\N	5	1	5000	10000
-9	2023-07-26 15:33:11.276284+00	2023-07-26 15:33:11.276284+00	\N	test add multi		\N	2	1	100	1000
-10	2023-07-26 15:33:11.276284+00	2023-07-26 15:33:11.276284+00	\N	test add multi pro		\N	24	1	100	1000
-11	2023-07-26 15:34:31.859157+00	2023-07-26 15:34:31.859157+00	\N	asd		\N	2	1	123	1234
-12	2023-07-26 15:37:02.607006+00	2023-07-26 15:37:02.607006+00	\N	asd		\N	12	1	10	1000
-14	2023-07-26 15:38:13.450678+00	2023-07-26 15:38:13.450678+00	\N	asd		\N	11	1	100	10000
-123	2023-07-26 15:41:09.18206+00	2023-07-26 15:41:09.18206+00	\N	asfsad		\N	1	1	1252	12213
-15	2023-07-28 04:07:52.914787+00	2023-07-28 04:07:52.914787+00	2023-07-28 04:10:58.487002+00	test add		\N	5	1	0	12000
-8	2023-07-28 04:54:28.35201+00	2023-07-28 06:11:29.838131+00	2023-07-28 06:18:37.030817+00	Test add hike		\N	10	1	1200	15000
+COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price_in, price_out, stock, store_id) FROM stdin;
+1	2023-08-03 09:51:33.667931+00	2023-08-03 09:51:33.667931+00	\N			0	0	0	0
+2	2023-08-03 09:51:49.367282+00	2023-08-03 09:51:49.367282+00	\N			0	0	0	0
+3	2023-08-03 09:51:50.437687+00	2023-08-03 09:51:50.437687+00	\N			0	0	0	0
+11	2023-08-03 09:57:01.440934+00	2023-08-03 09:57:01.440934+00	\N	Mi Hao Hao	Mi an lien	5000	10000	50	1
+9	2023-08-03 10:06:45.62337+00	2023-08-03 10:06:45.62337+00	\N	Mi Hao Hao	Mi an lien	5000	10000	50	1
 \.
 
 
@@ -339,27 +275,10 @@ COPY public.products (id, created_at, updated_at, deleted_at, product_name, cate
 -- Data for Name: sale_items; Type: TABLE DATA; Schema: public; Owner: root
 --
 
-COPY public.sale_items (id, created_at, updated_at, deleted_at, sale_id, product_id, quantity, stock) FROM stdin;
-1	2023-05-23 07:16:35.810871+00	2023-05-23 07:16:35.810871+00	\N	3	1	2	\N
-2	2023-05-23 07:26:27.58943+00	2023-05-23 07:26:27.58943+00	\N	4	1	2	\N
-3	2023-07-26 07:16:40.164527+00	2023-07-26 07:16:40.164527+00	\N	5	1	2	\N
-4	2023-07-27 03:41:06.282949+00	2023-07-27 03:41:06.282949+00	\N	8	1	\N	0
-5	2023-07-27 03:44:40.45725+00	2023-07-27 03:44:40.45725+00	\N	9	1	\N	0
-6	2023-07-27 03:44:54.737257+00	2023-07-27 03:44:54.737257+00	\N	10	1	\N	2
-7	2023-07-27 04:01:47.56328+00	2023-07-27 04:01:47.56328+00	\N	16	1	\N	2
-8	2023-07-27 04:02:06.314618+00	2023-07-27 04:02:06.314618+00	\N	17	1	\N	10
-9	2023-07-27 04:04:00.770363+00	2023-07-27 04:04:00.770363+00	\N	18	1	\N	10
-10	2023-07-27 04:04:28.02983+00	2023-07-27 04:04:28.02983+00	\N	19	1	\N	10
-11	2023-07-27 04:08:36.20644+00	2023-07-27 04:08:36.20644+00	\N	20	1	\N	10
-12	2023-07-27 04:09:08.956261+00	2023-07-27 04:09:08.956261+00	\N	21	1	\N	10
-13	2023-07-28 08:19:45.818114+00	2023-07-28 08:19:45.818114+00	\N	22	1	\N	1
-14	2023-07-28 08:24:55.082621+00	2023-07-28 08:24:55.082621+00	\N	23	4	\N	4
-15	2023-07-28 08:37:14.708987+00	2023-07-28 08:37:14.708987+00	\N	24	4	\N	4
-16	2023-07-28 08:37:48.61669+00	2023-07-28 08:37:48.61669+00	\N	25	6	\N	5
-17	2023-07-28 08:38:35.233094+00	2023-07-28 08:38:35.233094+00	\N	26	6	\N	5
-18	2023-07-28 08:50:56.31043+00	2023-07-28 08:50:56.31043+00	\N	27	1	\N	10
-19	2023-07-28 08:50:56.31043+00	2023-07-28 08:50:56.31043+00	\N	27	3	\N	5
-20	2023-07-28 08:50:56.31043+00	2023-07-28 08:50:56.31043+00	\N	27	6	\N	5
+COPY public.sale_items (sale_id, product_id, stock, deleted_at, created_at, updated_at) FROM stdin;
+1	11	2	\N	2023-08-03 10:06:08.946902+00	2023-08-03 10:06:08.946902+00
+2	9	2	\N	2023-08-03 10:06:59.761063+00	2023-08-03 10:06:59.761063+00
+2	11	2	\N	2023-08-03 10:06:59.761063+00	2023-08-03 10:06:59.761063+00
 \.
 
 
@@ -368,33 +287,8 @@ COPY public.sale_items (id, created_at, updated_at, deleted_at, sale_id, product
 --
 
 COPY public.sale_models (id, created_at, updated_at, deleted_at, store_id, employee_id, total_price) FROM stdin;
-1	2023-05-23 07:14:25.335785+00	2023-05-23 07:14:25.335785+00	\N	1	1	10000
-2	2023-05-23 07:14:42.730001+00	2023-05-23 07:14:42.730001+00	\N	1	1	10000
-3	2023-05-23 07:16:35.71541+00	2023-05-23 07:16:35.71541+00	\N	1	1	10000
-4	2023-05-23 07:26:27.477665+00	2023-05-23 07:26:27.477665+00	\N	1	1	10000
-5	2023-07-26 07:16:40.047546+00	2023-07-26 07:16:40.047546+00	\N	1	1	20000
-6	2023-07-27 03:33:04.924067+00	2023-07-27 03:33:04.924067+00	\N	1	1	0
-7	2023-07-27 03:37:47.003339+00	2023-07-27 03:37:47.003339+00	\N	1	1	0
-8	2023-07-27 03:41:06.189521+00	2023-07-27 03:41:06.189521+00	\N	1	1	0
-9	2023-07-27 03:44:40.396536+00	2023-07-27 03:44:40.396536+00	\N	1	1	0
-10	2023-07-27 03:44:54.676458+00	2023-07-27 03:44:54.676458+00	\N	1	1	20000
-11	2023-07-27 03:50:36.678987+00	2023-07-27 03:50:36.678987+00	\N	1	1	0
-12	2023-07-27 03:52:14.581493+00	2023-07-27 03:52:14.581493+00	\N	1	1	0
-13	2023-07-27 03:54:20.053672+00	2023-07-27 03:54:20.053672+00	\N	1	1	0
-14	2023-07-27 03:56:12.931209+00	2023-07-27 03:56:12.931209+00	\N	1	1	0
-15	2023-07-27 04:00:47.822944+00	2023-07-27 04:00:47.822944+00	\N	1	1	100000
-16	2023-07-27 04:01:47.441051+00	2023-07-27 04:01:47.441051+00	\N	1	1	20000
-17	2023-07-27 04:02:06.203778+00	2023-07-27 04:02:06.203778+00	\N	1	1	100000
-18	2023-07-27 04:04:00.699347+00	2023-07-27 04:04:00.699347+00	\N	1	1	100000
-19	2023-07-27 04:04:27.88161+00	2023-07-27 04:04:27.88161+00	\N	1	1	100000
-20	2023-07-27 04:08:36.057664+00	2023-07-27 04:08:36.057664+00	\N	1	1	100000
-21	2023-07-27 04:09:08.738048+00	2023-07-27 04:09:08.738048+00	\N	1	1	100000
-22	2023-07-28 08:19:45.533969+00	2023-07-28 08:19:45.533969+00	\N	1	1	10000
-23	2023-07-28 08:24:54.868096+00	2023-07-28 08:24:54.868096+00	\N	1	1	40000
-24	2023-07-28 08:37:14.641406+00	2023-07-28 08:37:14.641406+00	\N	1	1	40000
-25	2023-07-28 08:37:48.538126+00	2023-07-28 08:37:48.538126+00	\N	1	1	50000
-26	2023-07-28 08:38:35.150733+00	2023-07-28 08:38:35.150733+00	\N	1	1	50000
-27	2023-07-28 08:50:56.207025+00	2023-07-28 08:50:56.207025+00	\N	1	1	200000
+1	2023-08-03 10:06:08.945155+00	2023-08-03 10:06:08.945155+00	\N	1	1	20000
+2	2023-08-03 10:06:59.760195+00	2023-08-03 10:06:59.760195+00	\N	1	1	40000
 \.
 
 
@@ -403,7 +297,7 @@ COPY public.sale_models (id, created_at, updated_at, deleted_at, store_id, emplo
 --
 
 COPY public.store_models (id, created_at, updated_at, deleted_at, store_name, address) FROM stdin;
-1	2023-05-23 06:24:04.384954+00	2023-05-23 06:24:04.384954+00	\N	TapHoaThuyLien	Trung My Tay
+1	2023-08-03 08:51:56.19731+00	2023-08-03 08:51:56.19731+00	\N	TapHoaThuyLien	Trung My Tay
 \.
 
 
@@ -411,28 +305,21 @@ COPY public.store_models (id, created_at, updated_at, deleted_at, store_name, ad
 -- Name: employees_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.employees_id_seq', 2, true);
+SELECT pg_catalog.setval('public.employees_id_seq', 1, true);
 
 
 --
 -- Name: products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.products_id_seq', 5, true);
-
-
---
--- Name: sale_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
---
-
-SELECT pg_catalog.setval('public.sale_items_id_seq', 20, true);
+SELECT pg_catalog.setval('public.products_id_seq', 3, true);
 
 
 --
 -- Name: sale_models_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
 --
 
-SELECT pg_catalog.setval('public.sale_models_id_seq', 27, true);
+SELECT pg_catalog.setval('public.sale_models_id_seq', 2, true);
 
 
 --
@@ -459,19 +346,11 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- Name: join_requests join_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.join_requests
-    ADD CONSTRAINT join_requests_pkey PRIMARY KEY (employee_id, store_id);
-
-
---
 -- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: root
 --
 
 ALTER TABLE ONLY public.products
-    ADD CONSTRAINT products_pkey PRIMARY KEY (store_id, id);
+    ADD CONSTRAINT products_pkey PRIMARY KEY (id, store_id);
 
 
 --
@@ -479,7 +358,7 @@ ALTER TABLE ONLY public.products
 --
 
 ALTER TABLE ONLY public.sale_items
-    ADD CONSTRAINT sale_items_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT sale_items_pkey PRIMARY KEY (sale_id, product_id);
 
 
 --
@@ -531,67 +410,6 @@ CREATE INDEX idx_sale_models_deleted_at ON public.sale_models USING btree (delet
 --
 
 CREATE INDEX idx_store_models_deleted_at ON public.store_models USING btree (deleted_at);
-
-
---
--- Name: products_name_idx; Type: INDEX; Schema: public; Owner: root
---
-
-CREATE INDEX products_name_idx ON public.products USING gin (product_name public.gin_trgm_ops);
-
-
---
--- Name: products_name_trigram_idx; Type: INDEX; Schema: public; Owner: root
---
-
-CREATE INDEX products_name_trigram_idx ON public.products USING gin (product_name public.gin_trgm_ops);
-
-
---
--- Name: products_product_name_idx; Type: INDEX; Schema: public; Owner: root
---
-
-CREATE INDEX products_product_name_idx ON public.products USING gin (product_name public.gin_trgm_ops);
-
-
---
--- Name: join_requests fk_join_requests_employee; Type: FK CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.join_requests
-    ADD CONSTRAINT fk_join_requests_employee FOREIGN KEY (employee_id) REFERENCES public.employees(id);
-
-
---
--- Name: join_requests fk_join_requests_store; Type: FK CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.join_requests
-    ADD CONSTRAINT fk_join_requests_store FOREIGN KEY (store_id) REFERENCES public.store_models(id);
-
-
---
--- Name: sale_items fk_sale_items_sale; Type: FK CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.sale_items
-    ADD CONSTRAINT fk_sale_items_sale FOREIGN KEY (sale_id) REFERENCES public.sale_models(id);
-
-
---
--- Name: sale_models fk_sale_models_employee; Type: FK CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.sale_models
-    ADD CONSTRAINT fk_sale_models_employee FOREIGN KEY (employee_id) REFERENCES public.employees(id);
-
-
---
--- Name: sale_models fk_sale_models_store; Type: FK CONSTRAINT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.sale_models
-    ADD CONSTRAINT fk_sale_models_store FOREIGN KEY (store_id) REFERENCES public.store_models(id);
 
 
 --

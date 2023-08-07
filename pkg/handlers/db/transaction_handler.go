@@ -34,7 +34,7 @@ func (ts *TxStore) ExecuteTX(fn func(db *gorm.DB, rd *redis.Client) error) error
 	return err
 }
 
-func (ts *TxStore) WriteData(key string, source interface{}, writeToDB func(db *gorm.DB) error) error {
+func (ts *TxStore) WriteData(key RedisKey, source interface{}, writeToDB func(db *gorm.DB) error) error {
 	tx := ts.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -44,13 +44,13 @@ func (ts *TxStore) WriteData(key string, source interface{}, writeToDB func(db *
 		return err
 	}
 	data, _ := json.Marshal(source)
-	ts.rd.Set(key, string(data), 3600000)
+	ts.rd.Set(string(key), string(data), 3600000)
 	err := tx.Commit().Error
 	return err
 }
 
-func (ts *TxStore) ReadData(key string, dest interface{}, getFromDB func(db *gorm.DB) error) error {
-	result, e := ts.rd.Get(key).Result()
+func (ts *TxStore) ReadData(key RedisKey, dest interface{}, getFromDB func(db *gorm.DB) error) error {
+	result, e := ts.rd.Get(string(key)).Result()
 
 	if e == redis.Nil { // does not exist in redis, get it from postgres
 		e := getFromDB(ts.db)
@@ -60,7 +60,7 @@ func (ts *TxStore) ReadData(key string, dest interface{}, getFromDB func(db *gor
 		}
 		// set data to redis
 		data, _ := json.Marshal(dest)
-		ts.rd.Set(key, string(data), 3600000)
+		ts.rd.Set(string(key), string(data), 3600000)
 		return nil
 	} else if e != nil {
 		// some error occured

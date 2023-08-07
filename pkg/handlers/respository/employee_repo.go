@@ -20,7 +20,7 @@ type EmployeeRepository interface {
 	GetStoreInfo(storeID uint) *models.StoreModel
 	GetJoinRequest(storeID uint) (int, gin.H)
 	UpdateJoinRequest(storeID uint, employeeID uint, accept bool) (int, gin.H)
-	GetStores() (int, gin.H)
+	GetStores(page int, limit int) (int, gin.H)
 }
 type employeeRepositoryImpl struct {
 	tx *db.TxStore
@@ -32,18 +32,36 @@ func NewEmployeeRepository(tx *db.TxStore) EmployeeRepository {
 	}
 }
 
-func (r *employeeRepositoryImpl) GetStores() (int, gin.H) {
+func (r *employeeRepositoryImpl) GetStores(page, limit int) (int, gin.H) {
 	var stores []models.StoreModel
+	var totalItems int64 = 0
+	var totalPages int = 0
 
 	e := r.tx.ReadData("store", &stores, func(db *gorm.DB) error {
-		return db.Find(&stores).Error
+		// Count total items
+		db.Model(&models.StoreModel{}).Count(&totalItems)
+		// Retrieve paginated products
+		offset := (page - 1) * limit
+
+		if err := db.Limit(limit).Offset(offset).Find(&stores).Error; err != nil {
+			return err
+		}
+		// Calculate total pages
+		totalPages = int(int(totalItems)/limit) + 1
+		return nil
 	})
 	if e != nil {
 		return http.StatusInternalServerError, gin.H{"error": e.Error()}
 	}
-	return http.StatusOK, gin.H{
-		"data": stores,
+	// Prepare metadata
+	metadata := gin.H{
+		"totalItems":  totalItems,
+		"totalPages":  totalPages,
+		"currentPage": page,
+		"data":        stores,
 	}
+
+	return http.StatusOK, metadata
 }
 
 func (r *employeeRepositoryImpl) JoinStore(storeID uint, employee models.Employee) (int, gin.H) {
@@ -102,8 +120,8 @@ func (r *employeeRepositoryImpl) CreateStore(s *models.StoreModel, employee *mod
 func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	var store models.StoreModel
 
-	key := fmt.Sprintf("%d", storeID)
-	err := r.tx.ReadData(key, &store, func(db *gorm.DB) error {
+	key := fmt.Sprintf("store/%d", storeID)
+	err := r.tx.ReadData(db.RedisKey(key), &store, func(db *gorm.DB) error {
 		return db.First(&store, storeID).Error
 	})
 

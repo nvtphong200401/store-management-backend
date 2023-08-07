@@ -1,21 +1,26 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type SaleModel struct {
 	gorm.Model
 	StoreID    uint       `json:"StoreID,-"`
-	Store      StoreModel `gorm:"foreignKey:StoreID;" json:"-"`
 	EmployeeID uint       `json:"-"`
-	Employee   Employee   `gorm:"foreignKey:EmployeeID" json:"-"`
 	TotalPrice float64    `json:"TotalPrice"`
+	SaleItems  []SaleItem `gorm:"foreignKey:SaleID"`
 }
 
 type SaleItem struct {
-	gorm.Model
-	SaleID    uint      `json:"SaleID,-"`
-	Sale      SaleModel `gorm:"foreignKey:SaleID;" json:"-"`
-	ProductID uint      `json:"ID,omitempty"` // product ID
-	Product   Product   `gorm:"foreignKey:ProductID;"`
-	Stock     uint      `json:"Stock"`
+	SaleID uint `gorm:"primarykey" json:"SaleID,-"`
+	// Sale      SaleModel      `gorm:"foreignKey:SaleID;" json:"-"`
+	ProductID uint `gorm:"primarykey" json:"ID,omitempty"` // product ID
+	Product   Product
+	Stock     uint           `json:"Stock"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

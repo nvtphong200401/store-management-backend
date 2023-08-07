@@ -34,21 +34,43 @@ func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
 		now := time.Now()
 		db.AutoMigrate(&models.Product{})
 		// First, try to find the existing product by ID, including soft-deleted records
-		var existingProduct models.Product
+
 		for _, product := range p {
 			product.CreatedAt = now
 			product.UpdatedAt = now
-			if err := db.Unscoped().Where("id = ?", product.ID).First(&existingProduct).Error; err != nil {
-				// If the product doesn't exist (including soft-deleted), create it
-				if err = db.Create(product).Error; err != nil {
+			var existingProduct models.Product = product
+			if err := db.Unscoped().Where("id = ?", product.ID).FirstOrCreate(&existingProduct).Error; err != nil {
+				return err
+			}
+			if existingProduct.DeletedAt.Valid {
+				// If the product exists, update it with the new data
+				if err := db.Unscoped().Model(&existingProduct).Save(&product).Error; err != nil {
 					return err
 				}
 			}
 
-			// If the product exists, update it with the new data
-			if err := db.Model(&existingProduct).Updates(product).Error; err != nil {
-				return err
-			}
+			// if notExisted {
+			// 	// If the product doesn't exist (including soft-deleted), create it
+
+			// 	if err := db.Create(product).Error; err != nil {
+			// 		return err
+			// 	}
+			// } else {
+
+			// 	isDeleted := existingProduct.DeletedAt.Valid
+			// 	if isDeleted {
+
+			// 		// If the product exists, update it with the new data
+			// 		if err := db.Unscoped().Model(&existingProduct).Save(&product).Error; err != nil {
+			// 			return err
+			// 		}
+			// 	} else {
+			// 		if err := db.Create(product).Error; err != nil {
+			// 			return err
+			// 		}
+			// 	}
+
+			// }
 
 		}
 		return nil
@@ -62,7 +84,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
-		db.Model(&models.Product{}).Count(&totalItems)
+		db.Model(&models.Product{}).Where("store_id = ?", storeID).Count(&totalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
 		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Order("ID").Find(&products).Error; err != nil {
@@ -116,7 +138,7 @@ func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page
 	var totalPages int = 0
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
-		db.Model(&models.Product{}).Count(&totalItems)
+		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Count(&totalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
 
