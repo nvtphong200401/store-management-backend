@@ -18,7 +18,7 @@ func (r *Product) Marshal() ([]byte, error) {
 
 type Product struct {
 	gorm.Model
-
+	ID          string  `gorm:"primarykey" json:"ID"`
 	ProductName string  `json:"ProductName"`
 	Category    string  `json:"Category"`
 	PriceIn     float64 `json:"PriceIn"`

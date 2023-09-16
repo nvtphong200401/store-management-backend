@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
@@ -121,14 +120,9 @@ func (api *productAPIImpl) DeleteProduct(c *gin.Context) {
 }
 
 func (api *productAPIImpl) SearchProduct(c *gin.Context) {
-	var body struct {
-		Keyword string `json:"Keyword"`
-	}
 
-	if err := c.ShouldBindBodyWith(&body, binding.JSON); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	keyword := c.Query("keyword")
+
 	employee, err := helpers.GetEmployee(c)
 	if err != nil {
 		return
@@ -144,6 +138,6 @@ func (api *productAPIImpl) SearchProduct(c *gin.Context) {
 		limit = 10
 	}
 
-	statusCode, metadata := api.ps.SearchProduct(body.Keyword, employee.StoreID, page, limit)
+	statusCode, metadata := api.ps.SearchProduct(keyword, employee.StoreID, page, limit)
 	c.JSON(statusCode, metadata)
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	cmd := exec.Command("sh", "cmd/import.sh")
+	cmd := exec.Command("bash", "cmd/import.sh")
 	// Redirect the command's standard output and error to the current process's standard output and error
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -34,7 +34,7 @@ func init() {
 		<-signalChannel
 		fmt.Println("\nStopping Golang project...")
 		// Execute your shell script here
-		cmd = exec.Command("sh", "cmd/export.sh")
+		cmd = exec.Command("bash", "cmd/export.sh")
 		err = cmd.Run()
 		if err != nil {
 			log.Fatal(err)

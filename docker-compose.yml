@@ -14,7 +14,8 @@ services:
       - POSTGRES_DB=store_management
       - POSTGRES_HOST=db
   redis:
-    image: redis
+    container_name: redis
+    build: ./cache
     ports:
       - 6379:6379
 

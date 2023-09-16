@@ -94,7 +94,7 @@ ALTER SEQUENCE public.employees_id_seq OWNED BY public.employees.id;
 --
 
 CREATE TABLE public.products (
-    id bigint NOT NULL,
+    id text NOT NULL,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
@@ -110,33 +110,12 @@ CREATE TABLE public.products (
 ALTER TABLE public.products OWNER TO root;
 
 --
--- Name: products_id_seq; Type: SEQUENCE; Schema: public; Owner: root
---
-
-CREATE SEQUENCE public.products_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.products_id_seq OWNER TO root;
-
---
--- Name: products_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: root
---
-
-ALTER SEQUENCE public.products_id_seq OWNED BY public.products.id;
-
-
---
 -- Name: sale_items; Type: TABLE; Schema: public; Owner: root
 --
 
 CREATE TABLE public.sale_items (
     sale_id bigint NOT NULL,
-    product_id bigint NOT NULL,
+    product_id text NOT NULL,
     stock bigint,
     deleted_at timestamp with time zone,
     created_at timestamp with time zone,
@@ -229,13 +208,6 @@ ALTER TABLE ONLY public.employees ALTER COLUMN id SET DEFAULT nextval('public.em
 
 
 --
--- Name: products id; Type: DEFAULT; Schema: public; Owner: root
---
-
-ALTER TABLE ONLY public.products ALTER COLUMN id SET DEFAULT nextval('public.products_id_seq'::regclass);
-
-
---
 -- Name: sale_models id; Type: DEFAULT; Schema: public; Owner: root
 --
 
@@ -263,11 +235,10 @@ COPY public.employees (id, created_at, updated_at, deleted_at, username, passwor
 --
 
 COPY public.products (id, created_at, updated_at, deleted_at, product_name, category, price_in, price_out, stock, store_id) FROM stdin;
-1	2023-08-03 09:51:33.667931+00	2023-08-03 09:51:33.667931+00	\N			0	0	0	0
-2	2023-08-03 09:51:49.367282+00	2023-08-03 09:51:49.367282+00	\N			0	0	0	0
-3	2023-08-03 09:51:50.437687+00	2023-08-03 09:51:50.437687+00	\N			0	0	0	0
-11	2023-08-03 09:57:01.440934+00	2023-08-03 09:57:01.440934+00	\N	Mi Hao Hao	Mi an lien	5000	10000	50	1
-9	2023-08-03 10:06:45.62337+00	2023-08-03 10:06:45.62337+00	\N	Mi Hao Hao	Mi an lien	5000	10000	50	1
+	2023-09-14 14:53:47.981066+00	2023-09-14 14:53:47.981066+00	\N	djj		0	11000	20	1
+123	2023-09-15 13:30:44.406313+00	2023-09-15 13:30:44.406313+00	\N	phongdz		0	12000	20	1
+8936136164151	2023-09-15 15:32:28.193831+00	2023-09-15 15:33:51.43683+00	\N	chinsudayne		0	300000	20	1
+147	2023-09-15 15:34:54.496094+00	2023-09-15 15:34:54.558769+00	\N	trsst		0	0.8	20	1
 \.
 
 
@@ -276,9 +247,8 @@ COPY public.products (id, created_at, updated_at, deleted_at, product_name, cate
 --
 
 COPY public.sale_items (sale_id, product_id, stock, deleted_at, created_at, updated_at) FROM stdin;
-1	11	2	\N	2023-08-03 10:06:08.946902+00	2023-08-03 10:06:08.946902+00
-2	9	2	\N	2023-08-03 10:06:59.761063+00	2023-08-03 10:06:59.761063+00
-2	11	2	\N	2023-08-03 10:06:59.761063+00	2023-08-03 10:06:59.761063+00
+1	123	20	\N	2023-09-15 14:29:48.452257+00	2023-09-15 14:29:48.452257+00
+2	8936136164151	20	\N	2023-09-15 15:32:46.403485+00	2023-09-15 15:32:46.403485+00
 \.
 
 
@@ -287,8 +257,8 @@ COPY public.sale_items (sale_id, product_id, stock, deleted_at, created_at, upda
 --
 
 COPY public.sale_models (id, created_at, updated_at, deleted_at, store_id, employee_id, total_price) FROM stdin;
-1	2023-08-03 10:06:08.945155+00	2023-08-03 10:06:08.945155+00	\N	1	1	20000
-2	2023-08-03 10:06:59.760195+00	2023-08-03 10:06:59.760195+00	\N	1	1	40000
+1	2023-09-15 14:29:48.444782+00	2023-09-15 14:29:48.444782+00	\N	1	1	240000
+2	2023-09-15 15:32:46.401748+00	2023-09-15 15:32:46.401748+00	\N	1	1	6000000
 \.
 
 
@@ -306,13 +276,6 @@ COPY public.store_models (id, created_at, updated_at, deleted_at, store_name, ad
 --
 
 SELECT pg_catalog.setval('public.employees_id_seq', 1, true);
-
-
---
--- Name: products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: root
---
-
-SELECT pg_catalog.setval('public.products_id_seq', 3, true);
 
 
 --

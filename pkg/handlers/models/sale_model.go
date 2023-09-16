@@ -17,7 +17,7 @@ type SaleModel struct {
 type SaleItem struct {
 	SaleID uint `gorm:"primarykey" json:"SaleID,-"`
 	// Sale      SaleModel      `gorm:"foreignKey:SaleID;" json:"-"`
-	ProductID uint `gorm:"primarykey" json:"ID,omitempty"` // product ID
+	ProductID string `gorm:"primarykey" json:"ID,omitempty"` // product ID
 	Product   Product
 	Stock     uint           `json:"Stock"`
 	DeletedAt gorm.DeletedAt `gorm:"index"`
