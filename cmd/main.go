@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/nvtphong200401/store-management/pkg/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers"
-	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 	"github.com/nvtphong200401/store-management/pkg/registry"
 )
 
@@ -44,16 +44,20 @@ func init() {
 }
 
 func main() {
-	datastore, cachestorage := db.SetUp()
-	d, err := datastore.DB()
+	gormDB, err := db.ConnectPostgresDB("D:\\Documents\\store-management-backend\\production.env")
+	rd := db.ConnectRedis("D:\\Documents\\store-management-backend\\production.env")
+	txStore := db.NewTXStore(gormDB, rd)
+
 	if err != nil {
 		log.Panic(err)
 		return
 	}
-	defer d.Close()
+	defer txStore.CloseStorage()
 
-	r := registry.NewRegistry(db.NewTXStore(datastore, cachestorage))
+	r := registry.NewRegistry(txStore)
 	routersInit := handlers.InitRouter(r.NewAppController())
+	txStore.MigrateUp()
+
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: routersInit,

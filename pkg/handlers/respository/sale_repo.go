@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
-	"github.com/nvtphong200401/store-management/pkg/handlers/db"
+	"github.com/nvtphong200401/store-management/pkg/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"gorm.io/gorm"
 )

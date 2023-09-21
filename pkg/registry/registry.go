@@ -1,8 +1,8 @@
 package registry
 
 import (
+	"github.com/nvtphong200401/store-management/pkg/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/controller"
-	"github.com/nvtphong200401/store-management/pkg/handlers/db"
 )
 
 type Registry interface {

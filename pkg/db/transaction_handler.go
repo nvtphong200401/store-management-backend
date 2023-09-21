@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/go-redis/redis"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +19,26 @@ func NewTXStore(db *gorm.DB, rd *redis.Client) TxStore {
 		db: db,
 		rd: rd,
 	}
+}
+
+func (ts *TxStore) MigrateUp() {
+	ts.db.AutoMigrate(&models.Product{}, &models.Employee{}, &models.SaleModel{}, &models.SaleItem{}, &models.JoinRequest{}, models.StoreModel{})
+}
+
+func (ts *TxStore) MigrateDown() {
+	ts.db.Migrator().DropTable(&models.Product{}, &models.Employee{}, &models.SaleModel{}, &models.SaleItem{}, &models.JoinRequest{}, models.StoreModel{})
+}
+
+func (ts *TxStore) CloseStorage() error {
+	db, err := ts.db.DB()
+	if err != nil {
+		return err
+	}
+	err = ts.rd.Close()
+	if err != nil {
+		return err
+	}
+	return db.Close()
 }
 
 // Deprecated: Use ReadData or WriteData instead
