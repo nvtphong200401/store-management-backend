@@ -1,6 +1,7 @@
 package respository
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,6 +9,7 @@ import (
 	"github.com/nvtphong200401/store-management/pkg/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SaleRepository interface {
@@ -51,6 +53,19 @@ func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint,
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		db.AutoMigrate(&models.SaleModel{})
 		db.AutoMigrate(&models.SaleItem{})
+		for _, si := range items {
+			var product models.Product
+			if e := db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, si.ProductID).Error; e != nil {
+				return e
+			}
+			if si.Stock > uint(product.Stock) {
+				return fmt.Errorf("invalid stock")
+			}
+			product.Stock -= int(si.Stock)
+			if e := db.Save(&product).Error; e != nil {
+				return e
+			}
+		}
 		return db.Create(&sale).Error
 	})
 

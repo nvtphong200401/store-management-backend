@@ -138,11 +138,11 @@ func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page
 	var totalPages int = 0
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
-		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Count(&totalItems)
+		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Count(&totalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
 
-		if err := db.Limit(limit).Offset(offset).Where("store_id = ? AND to_tsvector(product_name || ' ' || id) @@ to_tsquery(?)", storeID, keyword).Find(&products).Error; err != nil {
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Find(&products).Error; err != nil {
 			return err
 		}
 		// Calculate total pages

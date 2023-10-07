@@ -15,7 +15,7 @@ type productSuiteTest struct {
 	postgres_test.PostgresSuite
 }
 
-func TestAuthSuite(t *testing.T) {
+func TestProductSuite(t *testing.T) {
 
 	productSuite := &productSuiteTest{
 		postgres_test.PostgresSuite{},
@@ -66,4 +66,23 @@ func (s *productSuiteTest) TestAddDuplicate() {
 	require.Equal(s.T(), status, http.StatusOK)
 	totalItems := header["totalItems"]
 	require.Equal(s.T(), int64(1), totalItems)
+}
+
+func (s *productSuiteTest) TestSearch() {
+	repo := respository.NewProductRepository(&s.TxStore)
+	products := []models.Product{{
+		ID:          "123",
+		ProductName: "Đây là rap việt",
+		PriceIn:     20000,
+		PriceOut:    30000,
+		Stock:       20,
+		StoreID:     1,
+	}}
+	err := repo.AddProduct(products)
+	require.NoError(s.T(), err)
+	status, header := repo.SearchProduct("day", 1, 1, 10)
+	require.Equal(s.T(), status, http.StatusOK)
+	data := header["data"].([]models.Product)
+	require.Equal(s.T(), 1, len(data))
+	require.Equal(s.T(), "Đây là rap việt", data[0].ProductName)
 }

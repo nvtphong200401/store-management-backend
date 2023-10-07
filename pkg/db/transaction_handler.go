@@ -23,6 +23,11 @@ func NewTXStore(db *gorm.DB, rd *redis.Client) TxStore {
 
 func (ts *TxStore) MigrateUp() {
 	ts.db.AutoMigrate(&models.Product{}, &models.Employee{}, &models.SaleModel{}, &models.SaleItem{}, &models.JoinRequest{}, models.StoreModel{})
+	ts.db.Exec("DROP TEXT SEARCH CONFIGURATION IF EXISTS fr")
+	ts.db.Exec("CREATE TEXT SEARCH CONFIGURATION fr ( COPY = french )")
+	ts.db.Exec(`ALTER TEXT SEARCH CONFIGURATION fr
+	ALTER MAPPING FOR hword, hword_part, word
+	WITH unaccent, french_stem;`)
 }
 
 func (ts *TxStore) MigrateDown() {
