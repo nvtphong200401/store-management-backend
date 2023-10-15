@@ -88,3 +88,21 @@ func (s *saleSuiteTest) TestInvalidStock() {
 	statusCode, _ := saleRepo.SellItems(saleItems, 1, 1)
 	require.NotEqual(s.T(), 200, statusCode)
 }
+
+func (s *saleSuiteTest) TestBuyProduct() {
+	products := []models.Product{{
+		ID:          "123",
+		ProductName: "Phongne",
+		PriceIn:     20000,
+		PriceOut:    30000,
+		Stock:       20,
+		StoreID:     1,
+	}}
+
+	bytes, err := json.Marshal(products)
+	require.NoError(s.T(), err)
+	var saleItems []models.SaleItem
+	err = json.Unmarshal(bytes, &saleItems)
+	require.NoError(s.T(), err)
+
+}
