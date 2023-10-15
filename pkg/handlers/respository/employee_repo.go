@@ -74,7 +74,7 @@ func (r *employeeRepositoryImpl) JoinStore(storeID uint, employee models.Employe
 			return err
 		}
 		if request.IsPending() {
-			return errors.New("Already pending")
+			return errors.New("already pending")
 		}
 		request = models.JoinRequest{
 			StoreID:    storeID,
@@ -96,7 +96,7 @@ func (r *employeeRepositoryImpl) JoinStore(storeID uint, employee models.Employe
 func (r *employeeRepositoryImpl) CreateStore(s *models.StoreModel, employee *models.Employee) error {
 
 	if employee.AlreadyInStore() {
-		return errors.New("Already in a store")
+		return errors.New("already in a store")
 	}
 
 	now := time.Now()
@@ -124,34 +124,6 @@ func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	err := r.tx.ReadData(db.RedisKey(key), &store, func(db *gorm.DB) error {
 		return db.First(&store, storeID).Error
 	})
-
-	// get data from redis
-
-	// err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-	// 	result, e := rd.Get(key).Result()
-	// 	if e == redis.Nil { // does not exist in redis, get it from postgres
-	// 		e = db.First(&store, storeID).Error
-	// 		if e != nil {
-	// 			return e
-	// 		}
-	// 		// set data to redis
-	// 		data, _ := json.Marshal(store)
-	// 		rd.Set(key, string(data), 3600)
-	// 		return nil
-	// 	} else if e != nil {
-	// 		// some error occured
-	// 		log.Println("Some error" + e.Error())
-
-	// 		return nil
-	// 	} else {
-	// 		// exist in redis
-	// 		e := json.Unmarshal([]byte(result), &store)
-	// 		if e != nil {
-	// 			return nil
-	// 		}
-	// 	}
-	// 	return e
-	// })
 	if err != nil {
 		return nil
 	}

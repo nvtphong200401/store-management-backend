@@ -12,8 +12,10 @@ import (
 )
 
 type ProductRepository interface {
+	// Deprecated: Use BuyItems in SaleRepo to add new product
 	AddProduct(p []models.Product) error
 	GetProducts(storeID uint, page int, limit int) (int, gin.H)
+	// [UPDATE] product will update any column except stock
 	UpdateProduct(p []models.Product) error
 	DeleteProduct(p []models.Product) error
 	SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H)
@@ -48,29 +50,6 @@ func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
 					return err
 				}
 			}
-
-			// if notExisted {
-			// 	// If the product doesn't exist (including soft-deleted), create it
-
-			// 	if err := db.Create(product).Error; err != nil {
-			// 		return err
-			// 	}
-			// } else {
-
-			// 	isDeleted := existingProduct.DeletedAt.Valid
-			// 	if isDeleted {
-
-			// 		// If the product exists, update it with the new data
-			// 		if err := db.Unscoped().Model(&existingProduct).Save(&product).Error; err != nil {
-			// 			return err
-			// 		}
-			// 	} else {
-			// 		if err := db.Create(product).Error; err != nil {
-			// 			return err
-			// 		}
-			// 	}
-
-			// }
 
 		}
 		return nil
@@ -112,6 +91,7 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 }
 
 func (r *productRepositoryImpl) UpdateProduct(products []models.Product) error {
+
 	for index := range products {
 		products[index].UpdatedAt = time.Now()
 	}

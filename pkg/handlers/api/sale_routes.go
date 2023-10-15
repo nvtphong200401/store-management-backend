@@ -33,6 +33,14 @@ func (api *saleAPIImpl) CreateSale(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	var products []models.Product
+	if err := c.ShouldBindBodyWith(&products, binding.JSON); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	for i := range items {
+		items[i].Product = products[i]
+	}
 
 	employee, err := helpers.GetEmployee(c)
 	if err != nil {

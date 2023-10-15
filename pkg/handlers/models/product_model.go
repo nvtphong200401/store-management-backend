@@ -23,6 +23,6 @@ type Product struct {
 	Category    string  `json:"Category"`
 	PriceIn     float64 `json:"PriceIn"`
 	PriceOut    float64 `json:"PriceOut"`
-	Stock       int     `json:"Stock"`
+	Stock       uint    `json:"Stock"`
 	StoreID     uint    `gorm:"primaryKey;"`
 }

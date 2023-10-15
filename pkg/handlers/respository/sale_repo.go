@@ -1,8 +1,10 @@
 package respository
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
@@ -16,6 +18,7 @@ type SaleRepository interface {
 	SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H)
 	GetSaleByID(id uint, storeID uint) (int, gin.H)
 	GetSales(storeID uint, page, limit int) (int, gin.H)
+	BuyItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H)
 }
 
 type saleRepositoryImpl struct {
@@ -28,21 +31,8 @@ func NewSaleRepository(tx *db.TxStore) SaleRepository {
 	}
 }
 
-func (r *saleRepositoryImpl) createSale(storeID uint, employeeID uint, totalPrice float64) (uint, error) {
-	sale := models.SaleModel{StoreID: storeID, EmployeeID: employeeID, TotalPrice: totalPrice}
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		db.AutoMigrate(&models.SaleModel{})
-		return db.Create(&sale).Error
-	})
-
-	if err != nil {
-		return 0, err
-	}
-	return sale.ID, nil
-}
-
 func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H) {
-	totalPrice := r.calculateTotalPrice(items)
+	totalPrice := r.calculateTotalPrice(items, CalculatePriceOut)
 
 	sale := models.SaleModel{
 		StoreID:    storeID,
@@ -61,7 +51,7 @@ func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint,
 			if si.Stock > uint(product.Stock) {
 				return fmt.Errorf("invalid stock")
 			}
-			product.Stock -= int(si.Stock)
+			product.Stock -= si.Stock
 			if e := db.Save(&product).Error; e != nil {
 				return e
 			}
@@ -74,14 +64,60 @@ func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint,
 		return http.StatusInternalServerError, gin.H{"error": err}
 	}
 
-	// err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-	// 	db.AutoMigrate(&models.SaleItem{})
-	// 	for index := range items {
-	// 		items[index].SaleID = saleid
+	if err != nil {
+		return http.StatusInternalServerError, gin.H{"error": err}
+	}
 
-	// 	}
-	// 	return db.Create(items).Error
-	// })
+	return http.StatusOK, gin.H{"ID": sale.ID, "TotalPrice": totalPrice}
+}
+
+func (r *saleRepositoryImpl) BuyItems(items []models.SaleItem, employeeID uint, storeID uint) (int, gin.H) {
+	totalPrice := r.calculateTotalPrice(items, CalculatePriceIn)
+
+	sale := models.SaleModel{
+		StoreID:    storeID,
+		EmployeeID: employeeID,
+		TotalPrice: -totalPrice,
+		SaleItems:  items,
+	}
+
+	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+		db.AutoMigrate(&models.SaleModel{})
+		db.AutoMigrate(&models.SaleItem{})
+		for _, si := range items {
+			var product models.Product
+			// Try to find the product by ID
+			if e := db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, si.ProductID).Error; e != nil {
+				if errors.Is(e, gorm.ErrRecordNotFound) {
+					// If the product doesn't exist, create a new one
+
+					product = si.Product
+					now := time.Now()
+					product.CreatedAt = now
+					product.UpdatedAt = now
+					var existingProduct models.Product = product
+					if err := db.Unscoped().Where("id = ?", product.ID).FirstOrCreate(&existingProduct).Error; err != nil {
+						return err
+					}
+					if existingProduct.DeletedAt.Valid {
+						// If the product exists, update it with the new data
+						if err := db.Unscoped().Model(&existingProduct).Save(&product).Error; err != nil {
+							return err
+						}
+					}
+				} else {
+					return e
+				}
+			} else {
+				// If the product exists, update the stock
+				product.Stock += si.Stock
+				if e := db.Save(&product).Error; e != nil {
+					return e
+				}
+			}
+		}
+		return db.Create(&sale).Error
+	})
 
 	if err != nil {
 		return http.StatusInternalServerError, gin.H{"error": err}
@@ -90,19 +126,28 @@ func (r *saleRepositoryImpl) SellItems(items []models.SaleItem, employeeID uint,
 	return http.StatusOK, gin.H{"ID": sale.ID, "TotalPrice": totalPrice}
 }
 
-func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem) float64 {
+// SaleItemCalculator is a function type for calculating the price of a sale item.
+type SaleItemCalculator func(item models.SaleItem, product models.Product) float64
+
+// calculateTotalPrice calculates the total price of items using the provided calculator function.
+func (r *saleRepositoryImpl) calculateTotalPrice(items []models.SaleItem, calculator SaleItemCalculator) float64 {
 	var total float64 = 0
 	for _, item := range items {
-		var product models.Product
-		err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-			return db.Where("id = ?", item.ProductID).First(&product).Error
-		})
-		if err != nil {
-			return 0
-		}
-		total += product.PriceOut * float64(item.Stock)
+		var product = item.Product
+		total += calculator(item, product)
 	}
 	return total
+}
+
+// CalculatePriceOut calculates the price out for a sale item.
+func CalculatePriceOut(item models.SaleItem, product models.Product) float64 {
+	return product.PriceOut * float64(item.Stock)
+}
+
+// CalculatePriceIn calculates the price in for a sale item.
+func CalculatePriceIn(item models.SaleItem, product models.Product) float64 {
+	// Calculate price in logic here
+	return product.PriceIn * float64(item.Stock)
 }
 
 func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (int, gin.H) {
