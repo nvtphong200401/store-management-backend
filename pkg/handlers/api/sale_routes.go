@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
-	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/handlers/usecases"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
 )
 
@@ -18,28 +18,21 @@ type SaleAPI interface {
 }
 
 type saleAPIImpl struct {
-	ss respository.SaleRepository
+	ss usecases.SaleUseCases
 }
 
-func NewSaleAPI(sr respository.SaleRepository) SaleAPI {
+func NewSaleAPI(sr usecases.SaleUseCases) SaleAPI {
 	return &saleAPIImpl{
 		ss: sr,
 	}
 }
 
 func (api *saleAPIImpl) CreateSale(c *gin.Context) {
-	var items []models.SaleItem
-	if err := c.ShouldBindBodyWith(&items, binding.JSON); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+
 	var products []models.Product
 	if err := c.ShouldBindBodyWith(&products, binding.JSON); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
-	for i := range items {
-		items[i].Product = products[i]
 	}
 
 	employee, err := helpers.GetEmployee(c)
@@ -47,7 +40,7 @@ func (api *saleAPIImpl) CreateSale(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-	statusCode, response := api.ss.SellItems(items, employee.ID, employee.StoreID)
+	statusCode, response := api.ss.SellItems(products, employee.ID, employee.StoreID)
 
 	c.JSON(statusCode, response)
 }

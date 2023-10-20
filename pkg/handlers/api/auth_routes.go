@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/handlers/usecases"
 )
 
 type AuthAPI interface {
@@ -14,10 +14,10 @@ type AuthAPI interface {
 }
 
 type authAPIImpl struct {
-	as respository.AuthRepository
+	as usecases.AuthUseCases
 }
 
-func NewAuthAPI(ar respository.AuthRepository) AuthAPI {
+func NewAuthAPI(ar usecases.AuthUseCases) AuthAPI {
 	return &authAPIImpl{
 		as: ar,
 	}
@@ -30,16 +30,17 @@ func (api *authAPIImpl) RenewToken(c *gin.Context) {
 		return
 	}
 
-	token, err := api.as.RenewToken(refreshToken)
+	statusCode, response := api.as.RenewToken(refreshToken)
 
+	c.JSON(statusCode, response)
 	// Return the new access token to the client
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, "Invalid refresh token")
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"access_token": token,
-	})
+	// if err != nil {
+	// 	c.JSON(http.StatusUnauthorized, "Invalid refresh token")
+	// 	return
+	// }
+	// c.JSON(http.StatusOK, gin.H{
+	// 	"access_token": token,
+	// })
 }
 
 func (api *authAPIImpl) Login(c *gin.Context) {
@@ -52,13 +53,13 @@ func (api *authAPIImpl) Login(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	token, err := api.as.Login(credentials.Username, credentials.Password)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid username or password"})
-		return
-	}
+	statusCode, response := api.as.Login(credentials.Username, credentials.Password)
+	// if err != nil {
+	// 	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid username or password"})
+	// 	return
+	// }
 
-	c.JSON(http.StatusOK, gin.H{"access_token": token})
+	c.JSON(statusCode, response)
 }
 
 func (api *authAPIImpl) SignUp(c *gin.Context) {
@@ -70,9 +71,6 @@ func (api *authAPIImpl) SignUp(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	if err := api.as.SignUp(credentials.Username, credentials.Password); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "success"})
+	statusCode, response := api.as.SignUp(credentials.Username, credentials.Password)
+	c.JSON(statusCode, response)
 }

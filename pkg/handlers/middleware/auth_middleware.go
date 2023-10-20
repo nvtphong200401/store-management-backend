@@ -4,8 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nvtphong200401/store-management/pkg/handlers/models"
-	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/handlers/usecases"
 	"github.com/nvtphong200401/store-management/pkg/helpers"
 )
 
@@ -16,12 +15,12 @@ type Middleware interface {
 }
 
 type middlewareImpl struct {
-	auth respository.AuthRepository
+	authUseCase usecases.AuthUseCases
 }
 
-func NewMiddleware(a respository.AuthRepository) Middleware {
+func NewMiddleware(a usecases.AuthUseCases) Middleware {
 	return &middlewareImpl{
-		auth: a,
+		authUseCase: a,
 	}
 }
 
@@ -32,20 +31,19 @@ func (m *middlewareImpl) AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 			return
 		}
-
-		claims, err := m.auth.VerifyToken(tokenString)
+		user, err := m.authUseCase.GetUserInfo(tokenString)
 
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": err.Error()})
 			return
 		}
-		if err := claims.Valid(); err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		var user models.Employee
+		// if err := claims.Valid(); err != nil {
+		// 	c.AbortWithStatus(http.StatusUnauthorized)
+		// 	return
+		// }
+		// var user models.Employee
 
-		m.auth.CheckID(claims.UserID, &user)
+		// m.auth.CheckID(claims.UserID, &user)
 		c.Set("user", user)
 
 		c.Next()

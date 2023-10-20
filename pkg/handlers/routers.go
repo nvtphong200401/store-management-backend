@@ -43,7 +43,7 @@ func InitRouter(c controller.AppController) *gin.Engine {
 
 func productRouter(apiProduct *gin.RouterGroup, c controller.AppController) {
 
-	apiProduct.POST("", c.Product.InsertProduct)
+	// apiProduct.POST("", c.Product.InsertProduct)
 	apiProduct.GET("", c.Product.ListProduct)
 	apiProduct.PUT("", c.Product.UpdateProduct)
 	apiProduct.DELETE("", c.Product.DeleteProduct)

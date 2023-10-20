@@ -1,10 +1,8 @@
 package respository
 
 import (
-	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/db"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
@@ -14,11 +12,11 @@ import (
 type ProductRepository interface {
 	// Deprecated: Use BuyItems in SaleRepo to add new product
 	AddProduct(p []models.Product) error
-	GetProducts(storeID uint, page int, limit int) (int, gin.H)
+	GetProducts(storeID uint, page int, limit int) (int, []models.Product, error)
 	// [UPDATE] product will update any column except stock
 	UpdateProduct(p []models.Product) error
 	DeleteProduct(p []models.Product) error
-	SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H)
+	SearchProducts(keyword string, storeID uint, page int, limit int) (int, []models.Product, error)
 }
 
 type productRepositoryImpl struct {
@@ -56,10 +54,10 @@ func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
 	})
 }
 
-func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (int, gin.H) {
+func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (int, []models.Product, error) {
 	var products []models.Product
 	var totalItems int64 = 0
-	var totalPages int = 0
+	// var totalPages int = 0
 
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
@@ -70,31 +68,28 @@ func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (
 			return err
 		}
 		// Calculate total pages
-		totalPages = int(int(totalItems)/limit) + 1
+		// totalPages = int(int(totalItems)/limit) + 1
 		return nil
 	})
-	if err != nil {
-		return http.StatusInternalServerError, gin.H{
-			"error": err,
-		}
-	}
+	return int(totalItems), products, err
+	// if err != nil {
+	// 	return http.StatusInternalServerError, gin.H{
+	// 		"error": err,
+	// 	}
+	// }
 
 	// Prepare metadata
-	metadata := gin.H{
-		"totalItems":  totalItems,
-		"totalPages":  totalPages,
-		"currentPage": page,
-		"data":        products,
-	}
+	// metadata := gin.H{
+	// 	"totalItems":  totalItems,
+	// 	"totalPages":  totalPages,
+	// 	"currentPage": page,
+	// 	"data":        products,
+	// }
 
-	return http.StatusOK, metadata
+	// return http.StatusOK, metadata
 }
 
 func (r *productRepositoryImpl) UpdateProduct(products []models.Product) error {
-
-	for index := range products {
-		products[index].UpdatedAt = time.Now()
-	}
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		return db.Save(products).Error
 	})
@@ -112,10 +107,10 @@ func (r *productRepositoryImpl) DeleteProduct(p []models.Product) error {
 	})
 }
 
-func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page int, limit int) (int, gin.H) {
+func (r *productRepositoryImpl) SearchProducts(keyword string, storeID uint, page int, limit int) (int, []models.Product, error) {
 	var products []models.Product
 	var totalItems int64 = 0
-	var totalPages int = 0
+	// var totalPages int = 0
 	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		// Count total items
 		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Count(&totalItems)
@@ -126,23 +121,24 @@ func (r *productRepositoryImpl) SearchProduct(keyword string, storeID uint, page
 			return err
 		}
 		// Calculate total pages
-		totalPages = int(int(totalItems)/limit) + 1
+		// totalPages = int(int(totalItems)/limit) + 1
 		return nil
 	})
+	return int(totalItems), products, err
 
-	if err != nil {
-		return http.StatusInternalServerError, gin.H{
-			"error": err,
-		}
-	}
+	// if err != nil {
+	// 	return http.StatusInternalServerError, gin.H{
+	// 		"error": err,
+	// 	}
+	// }
 
-	// Prepare metadata
-	metadata := gin.H{
-		"totalItems":  totalItems,
-		"totalPages":  totalPages,
-		"currentPage": page,
-		"data":        products,
-	}
+	// // Prepare metadata
+	// metadata := gin.H{
+	// 	"totalItems":  totalItems,
+	// 	"totalPages":  totalPages,
+	// 	"currentPage": page,
+	// 	"data":        products,
+	// }
 
-	return http.StatusOK, metadata
+	// return http.StatusOK, metadata
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"github.com/nvtphong200401/store-management/pkg/handlers/respository"
+	"github.com/nvtphong200401/store-management/pkg/handlers/usecases"
 	postgres_test "github.com/nvtphong200401/store-management/testing/postgres"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -50,6 +51,7 @@ func (s *productSuiteTest) TestReAdd() {
 
 func (s *productSuiteTest) TestAddDuplicate() {
 	repo := respository.NewProductRepository(&s.TxStore)
+	productUseCase := usecases.NewProductUseCases(repo)
 	products := []models.Product{{
 		ID:          "123",
 		ProductName: "Phongne",
@@ -62,14 +64,15 @@ func (s *productSuiteTest) TestAddDuplicate() {
 	require.NoError(s.T(), err)
 	err = repo.AddProduct(products)
 	require.NoError(s.T(), err)
-	status, header := repo.GetProducts(1, 1, 10)
+	status, header := productUseCase.GetProducts(1, 1, 10)
 	require.Equal(s.T(), status, http.StatusOK)
 	totalItems := header["totalItems"]
-	require.Equal(s.T(), int64(1), totalItems)
+	require.Equal(s.T(), 1, totalItems)
 }
 
 func (s *productSuiteTest) TestSearch() {
 	repo := respository.NewProductRepository(&s.TxStore)
+	productUseCase := usecases.NewProductUseCases(repo)
 	products := []models.Product{{
 		ID:          "123",
 		ProductName: "Đây là rap việt",
@@ -80,7 +83,7 @@ func (s *productSuiteTest) TestSearch() {
 	}}
 	err := repo.AddProduct(products)
 	require.NoError(s.T(), err)
-	status, header := repo.SearchProduct("day", 1, 1, 10)
+	status, header := productUseCase.SearchProducts("day", 1, 1, 10)
 	require.Equal(s.T(), status, http.StatusOK)
 	data := header["data"].([]models.Product)
 	require.Equal(s.T(), 1, len(data))
