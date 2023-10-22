@@ -19,11 +19,11 @@ func NewProductUseCases(product_repo respository.ProductRepository) ProductUseCa
 }
 
 func (p *ProductUseCases) GetProducts(storeID uint, page int, limit int) (int, gin.H) {
-	totalItems, data, err := p.product_repo.GetProducts(storeID, page, limit)
+	result, err := p.product_repo.GetProducts(storeID, page, limit)
 	if err != nil {
 		return responseWithError(err)
 	}
-	return responseWithPagination(totalItems, limit, page, data)
+	return responseWithPagination(int(result.TotalItems), limit, page, result.Data)
 }
 
 func (p *ProductUseCases) UpdateProducts(products []models.Product) (int, gin.H) {
@@ -38,11 +38,11 @@ func (p *ProductUseCases) UpdateProducts(products []models.Product) (int, gin.H)
 }
 
 func (p *ProductUseCases) SearchProducts(keyword string, storeID uint, page int, limit int) (int, gin.H) {
-	totalItems, data, err := p.product_repo.SearchProducts(keyword, storeID, page, limit)
+	result, err := p.product_repo.SearchProducts(keyword, storeID, page, limit)
 	if err != nil {
 		return responseWithError(err)
 	}
-	return responseWithPagination(totalItems, limit, page, data)
+	return responseWithPagination(int(result.TotalItems), limit, page, result.Data)
 }
 
 func (p *ProductUseCases) DeleteProducts(products []models.Product) (int, gin.H) {

@@ -66,7 +66,13 @@ func (s *productSuiteTest) TestAddDuplicate() {
 	require.NoError(s.T(), err)
 	status, header := productUseCase.GetProducts(1, 1, 10)
 	require.Equal(s.T(), status, http.StatusOK)
+
 	totalItems := header["totalItems"]
+	require.Equal(s.T(), 1, totalItems)
+	// test hit cache
+	status, header = productUseCase.GetProducts(1, 1, 10)
+	require.Equal(s.T(), status, http.StatusOK)
+	totalItems = header["totalItems"]
 	require.Equal(s.T(), 1, totalItems)
 }
 

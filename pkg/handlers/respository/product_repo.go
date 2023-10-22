@@ -1,6 +1,7 @@
 package respository
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -12,11 +13,11 @@ import (
 type ProductRepository interface {
 	// Deprecated: Use BuyItems in SaleRepo to add new product
 	AddProduct(p []models.Product) error
-	GetProducts(storeID uint, page int, limit int) (int, []models.Product, error)
+	GetProducts(storeID uint, page int, limit int) (models.PaginationModel[models.Product], error)
 	// [UPDATE] product will update any column except stock
 	UpdateProduct(p []models.Product) error
 	DeleteProduct(p []models.Product) error
-	SearchProducts(keyword string, storeID uint, page int, limit int) (int, []models.Product, error)
+	SearchProducts(keyword string, storeID uint, page int, limit int) (models.PaginationModel[models.Product], error)
 }
 
 type productRepositoryImpl struct {
@@ -54,91 +55,69 @@ func (r *productRepositoryImpl) AddProduct(p []models.Product) error {
 	})
 }
 
-func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (int, []models.Product, error) {
-	var products []models.Product
-	var totalItems int64 = 0
-	// var totalPages int = 0
+func (r *productRepositoryImpl) GetProducts(storeID uint, page int, limit int) (models.PaginationModel[models.Product], error) {
 
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	// var totalPages int = 0
+	var pagination models.PaginationModel[models.Product] = models.PaginationModel[models.Product]{
+		Data:       []models.Product{},
+		TotalItems: 0,
+	}
+
+	cacheKey := fmt.Sprintf("store:products:%d:%d:%d", storeID, page, limit)
+
+	err := r.tx.ReadData(cacheKey, &pagination, func(db *gorm.DB) (interface{}, error) {
 		// Count total items
-		db.Model(&models.Product{}).Where("store_id = ?", storeID).Count(&totalItems)
+		db.Model(&models.Product{}).Where("store_id = ?", storeID).Count(&pagination.TotalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
-		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Order("ID").Find(&products).Error; err != nil {
-			return err
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Order("ID").Find(&pagination.Data).Error; err != nil {
+			return pagination, err
 		}
-		// Calculate total pages
-		// totalPages = int(int(totalItems)/limit) + 1
-		return nil
+		return pagination, nil
 	})
-	return int(totalItems), products, err
-	// if err != nil {
-	// 	return http.StatusInternalServerError, gin.H{
-	// 		"error": err,
-	// 	}
-	// }
-
-	// Prepare metadata
-	// metadata := gin.H{
-	// 	"totalItems":  totalItems,
-	// 	"totalPages":  totalPages,
-	// 	"currentPage": page,
-	// 	"data":        products,
-	// }
-
-	// return http.StatusOK, metadata
+	return pagination, err
 }
 
 func (r *productRepositoryImpl) UpdateProduct(products []models.Product) error {
-	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Save(products).Error
+	cacheKey := fmt.Sprintf("store:products:%d", products[0].StoreID)
+	return r.tx.WriteData(cacheKey, func(db *gorm.DB) (interface{}, error) {
+		err := db.Save(&products).Error
+		return products, err
 	})
 }
 
 func (r *productRepositoryImpl) DeleteProduct(p []models.Product) error {
-	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	cacheKey := fmt.Sprintf("store:products:%d", p[0].StoreID)
+	return r.tx.WriteData(cacheKey, func(db *gorm.DB) (interface{}, error) {
 		for _, prod := range p {
 
 			if err := db.Where("id = ? and store_id = ?", prod.ID, prod.StoreID).Delete(&models.Product{}).Error; err != nil {
-				return err
+				return nil, err
 			}
 		}
-		return nil
+		return []models.Product{}, nil
 	})
 }
 
-func (r *productRepositoryImpl) SearchProducts(keyword string, storeID uint, page int, limit int) (int, []models.Product, error) {
-	var products []models.Product
-	var totalItems int64 = 0
-	// var totalPages int = 0
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+func (r *productRepositoryImpl) SearchProducts(keyword string, storeID uint, page int, limit int) (models.PaginationModel[models.Product], error) {
+
+	cacheKey := fmt.Sprintf("store:products:%v:%d:%d:%d", keyword, storeID, page, limit)
+	var pagination models.PaginationModel[models.Product] = models.PaginationModel[models.Product]{
+		Data:       []models.Product{},
+		TotalItems: 0,
+	}
+	err := r.tx.ReadData(cacheKey, &pagination, func(db *gorm.DB) (interface{}, error) {
 		// Count total items
-		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Count(&totalItems)
+		db.Model(&models.Product{}).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Count(&pagination.TotalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
 
-		if err := db.Limit(limit).Offset(offset).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Find(&products).Error; err != nil {
-			return err
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ? AND to_tsvector('fr', product_name || ' ' || id) @@ to_tsquery('fr', ?)", storeID, keyword).Find(&pagination.Data).Error; err != nil {
+			return pagination, err
 		}
 		// Calculate total pages
 		// totalPages = int(int(totalItems)/limit) + 1
-		return nil
+		return pagination, nil
 	})
-	return int(totalItems), products, err
-
-	// if err != nil {
-	// 	return http.StatusInternalServerError, gin.H{
-	// 		"error": err,
-	// 	}
-	// }
-
-	// // Prepare metadata
-	// metadata := gin.H{
-	// 	"totalItems":  totalItems,
-	// 	"totalPages":  totalPages,
-	// 	"currentPage": page,
-	// 	"data":        products,
-	// }
-
-	// return http.StatusOK, metadata
+	return pagination, err
 }

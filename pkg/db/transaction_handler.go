@@ -3,6 +3,9 @@ package db
 import (
 	"encoding/json"
 	"log"
+	"reflect"
+	"sync"
+	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
@@ -10,8 +13,9 @@ import (
 )
 
 type TxStore struct {
-	db *gorm.DB
-	rd *redis.Client
+	db         *gorm.DB
+	rd         *redis.Client
+	cacheMutex sync.Mutex
 }
 
 func NewTXStore(db *gorm.DB, rd *redis.Client) TxStore {
@@ -31,6 +35,16 @@ func (ts *TxStore) MigrateUp() {
 }
 
 func (ts *TxStore) MigrateDown() {
+	keys, err := ts.rd.Keys("*").Result()
+	if err != nil {
+		log.Println(err)
+	}
+	// Delete all keys
+	for _, key := range keys {
+		if err := ts.rd.Del(key).Err(); err != nil {
+			log.Printf("Error deleting key %s: %v", key, err)
+		}
+	}
 	ts.db.Migrator().DropTable(&models.Product{}, &models.Employee{}, &models.SaleModel{}, &models.SaleItem{}, &models.JoinRequest{}, models.StoreModel{})
 }
 
@@ -60,45 +74,80 @@ func (ts *TxStore) ExecuteTX(fn func(db *gorm.DB, rd *redis.Client) error) error
 	return err
 }
 
-func (ts *TxStore) WriteData(key RedisKey, source interface{}, writeToDB func(db *gorm.DB) error) error {
+func (ts *TxStore) WriteData(key string, writeToDB func(db *gorm.DB) (interface{}, error)) error {
 	tx := ts.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
-	if err := writeToDB(tx); err != nil {
+	source, err := writeToDB(tx)
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
 	data, _ := json.Marshal(source)
-	ts.rd.Set(string(key), string(data), 3600000)
-	err := tx.Commit().Error
+	if key != "" {
+		ts.rd.Set(string(key), string(data), time.Minute*30)
+	}
+	err = tx.Commit().Error
 	return err
 }
 
-func (ts *TxStore) ReadData(key RedisKey, dest interface{}, getFromDB func(db *gorm.DB) error) error {
-	result, e := ts.rd.Get(string(key)).Result()
+func (ts *TxStore) ReadData(key string, dest interface{}, getFromDB func(db *gorm.DB) (interface{}, error)) error {
+	cacheKey := string(key)
+	var err error
 
-	if e == redis.Nil { // does not exist in redis, get it from postgres
-		e := getFromDB(ts.db)
-
-		if e != nil {
-			return e
-		}
-		// set data to redis
-		data, _ := json.Marshal(dest)
-		ts.rd.Set(string(key), string(data), 3600000)
+	log.Println(reflect.TypeOf(dest).Name())
+	err = ts.checkCache(cacheKey, &dest)
+	if err == nil {
 		return nil
-	} else if e != nil {
-		// some error occured
-		log.Println("Some error" + e.Error())
-
-		return nil
-	} else {
-		// exist in redis
-		e := json.Unmarshal([]byte(result), &dest)
-		if e != nil {
-			return nil
-		}
+	} else if err != redis.Nil {
+		// Some error occurred while reading from Redis
+		log.Printf("Error reading from cache: %v", err)
+		return err
 	}
-	return e
+	log.Println("cache miss")
+	// If cache miss, acquire a lock to prevent concurrent database queries
+	ts.cacheMutex.Lock()
+	defer ts.cacheMutex.Unlock()
+	// Recheck the cache after acquiring the lock
+	err = ts.checkCache(cacheKey, &dest)
+	if err == nil {
+		return nil
+	}
+	// If still not in cache, fetch data from the database
+
+	dest, err = getFromDB(ts.db)
+
+	if err != nil {
+		log.Printf("Error fetching data from the database: %v", err)
+		return err
+	}
+	// Store the fetched data in Redis cache with a TTL
+
+	data, err := json.Marshal(dest)
+	if err != nil {
+		log.Printf("Error marshaling data for cache: %v", err)
+		return err
+	}
+
+	if err := ts.rd.Set(cacheKey, string(data), time.Minute*30).Err(); err != nil {
+		log.Printf("Error storing data in cache: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (ts *TxStore) checkCache(key string, dest interface{}) error {
+
+	cachedData, err := ts.rd.Get(key).Result()
+	if err == nil {
+		if err := json.Unmarshal([]byte(cachedData), &dest); err != nil {
+			log.Printf("Cache hit but failed to unmarshal: %v", err)
+			return err
+		}
+		log.Println("hit cache ", dest)
+		return nil
+	}
+	return err
 }

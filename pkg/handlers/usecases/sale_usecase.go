@@ -71,11 +71,11 @@ func (s *SaleUseCases) GetSaleByID(id uint, storeID uint) (int, gin.H) {
 }
 
 func (s *SaleUseCases) GetSales(storeID uint, page, limit int) (int, gin.H) {
-	totalItems, data, err := s.sale_repo.GetSales(storeID, page, limit)
+	result, err := s.sale_repo.GetSales(storeID, page, limit)
 	if err != nil {
 		return responseWithError(err)
 	}
-	return responseWithPagination(totalItems, limit, page, data)
+	return responseWithPagination(int(result.TotalItems), limit, page, result.Data)
 }
 
 type saleItemCalculator func(item models.SaleItem, product models.Product) float64

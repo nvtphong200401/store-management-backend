@@ -1,6 +1,8 @@
 package sale_test
 
 import (
+	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/nvtphong200401/store-management/pkg/handlers/models"
@@ -105,4 +107,28 @@ func (s *saleSuiteTest) TestBuyProductNotExist() {
 	require.Equal(s.T(), 200, code)
 	productAfter := header["data"].([]models.Product)
 	require.NotEmpty(s.T(), productAfter)
+}
+
+func (s *saleSuiteTest) TestGetSales() {
+	saleRepo := respository.NewSaleRepository(&s.TxStore)
+	saleUseCase := usecases.NewSaleUseCases(saleRepo)
+	products := []models.Product{{
+		ID:          "123",
+		ProductName: "Phongne",
+		PriceIn:     20000,
+		PriceOut:    30000,
+		Stock:       20,
+		StoreID:     1,
+	}}
+
+	statusCode, _ := saleUseCase.BuyItems(products, 1, 1)
+	require.Equal(s.T(), http.StatusOK, statusCode)
+	statusCode, result := saleUseCase.GetSales(1, 1, 10)
+	require.Equal(s.T(), http.StatusOK, statusCode)
+	require.NotEmpty(s.T(), result["data"])
+	fmt.Println("result ", result["data"])
+	// test hit cache
+	statusCode, result = saleUseCase.GetSales(1, 1, 10)
+	require.Equal(s.T(), http.StatusOK, statusCode)
+	require.NotEmpty(s.T(), result["data"])
 }

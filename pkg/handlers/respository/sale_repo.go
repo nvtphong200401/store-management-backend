@@ -17,7 +17,7 @@ type SaleRepository interface {
 	// GetSaleByID(id uint, storeID uint) (int, gin.H)
 	GetSaleByID(id uint, storeID uint) (*models.SaleModel, error)
 	// GetSales(storeID uint, page, limit int) (int, gin.H)
-	GetSales(storeID uint, page, limit int) (int, []models.SaleModel, error)
+	GetSales(storeID uint, page, limit int) (models.PaginationModel[models.SaleModel], error)
 	BuyItems(sale models.SaleModel) error
 }
 
@@ -40,39 +40,32 @@ func (r *saleRepositoryImpl) SellItems(sale models.SaleModel) error {
 	// 	TotalPrice: totalPrice,
 	// 	SaleItems:  items,
 	// }
-	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	return r.tx.WriteData("", func(db *gorm.DB) (interface{}, error) {
 		db.AutoMigrate(&models.SaleModel{})
 		db.AutoMigrate(&models.SaleItem{})
 		for _, si := range sale.SaleItems {
 			var product models.Product
 			if e := db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, si.ProductID).Error; e != nil {
-				return e
+				return nil, e
 			}
 			if si.Stock > uint(product.Stock) {
-				return fmt.Errorf("invalid stock")
+				return nil, fmt.Errorf("invalid stock")
 			}
 			product.Stock -= si.Stock
 			if e := db.Save(&product).Error; e != nil {
-				return e
+				return nil, e
 			}
 		}
-		return db.Create(&sale).Error
+		err := db.Create(&sale).Error
+		if err != nil {
+			return nil, err
+		}
+		return sale, nil
 	})
-
-	// saleid, err := r.createSale(storeID, employeeID, totalPrice)
-	// if err != nil {
-	// 	return http.StatusInternalServerError, gin.H{"error": err}
-	// }
-
-	// if err != nil {
-	// 	return http.StatusInternalServerError, gin.H{"error": err}
-	// }
-
-	// return http.StatusOK, gin.H{"ID": sale.ID, "TotalPrice": totalPrice}
 }
 
 func (r *saleRepositoryImpl) BuyItems(sale models.SaleModel) error {
-
+	fmt.Println("sale: ", sale)
 	return r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
 		db.AutoMigrate(&models.SaleModel{})
 		db.AutoMigrate(&models.SaleItem{})
@@ -116,68 +109,41 @@ func (r *saleRepositoryImpl) BuyItems(sale models.SaleModel) error {
 func (r *saleRepositoryImpl) GetSaleByID(id uint, storeID uint) (*models.SaleModel, error) {
 	var sale models.SaleModel
 
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-		return db.Where("id = ? and store_id = ?", id, storeID).Find(&sale).Error
+	cacheKey := fmt.Sprintf("store:sale:%d:%d", storeID, id)
+
+	err := r.tx.ReadData(cacheKey, &sale, func(db *gorm.DB) (interface{}, error) {
+		e := db.Where("id = ? and store_id = ?", id, storeID).Find(&sale).Error
+		if e != nil {
+			return nil, e
+		}
+		return sale, nil
 	})
-
-	if err != nil {
-		// return http.StatusBadRequest, gin.H{"error": err}
-		return nil, err
-	}
-	return &sale, nil
-
-	// var items []models.SaleItem
-	// err = r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
-	// 	if err = db.Where("Sale_ID = ?", id).Preload("Product").Find(&items).Error; err != nil {
-	// 		return err
-	// 	}
-	// 	for index, value := range items {
-	// 		var product models.Product
-	// 		if err = db.Where("ID = ?", value.ProductID).First(&product).Error; err != nil {
-	// 			return err
-	// 		}
-	// 		items[index].Product = product
-	// 	}
-	// 	return nil
-	// })
-
-	// if err != nil {
-	// 	// return http.StatusBadRequest, gin.H{"error": err}
-	// }
-	// return http.StatusOK, gin.H{
-	// 	"Items":      items,
-	// 	"TotalPrice": sale.TotalPrice,
-	// }
+	return &sale, err
 }
 
-func (r *saleRepositoryImpl) GetSales(storeID uint, page, limit int) (int, []models.SaleModel, error) {
-	var sales []models.SaleModel = make([]models.SaleModel, 0)
-	var totalItems int64 = 0
-	// var totalPages int = 1
+func (r *saleRepositoryImpl) GetSales(storeID uint, page, limit int) (models.PaginationModel[models.SaleModel], error) {
+	var pagination = models.PaginationModel[models.SaleModel]{
+		Data:       []models.SaleModel{},
+		TotalItems: 0,
+	}
 
-	err := r.tx.ExecuteTX(func(db *gorm.DB, rd *redis.Client) error {
+	cacheKey := fmt.Sprintf("store:sales:%d:%d:%d", storeID, page, limit)
+
+	err := r.tx.ReadData(cacheKey, &pagination, func(db *gorm.DB) (interface{}, error) {
 		// Count total items
-		db.Model(&models.SaleModel{}).Count(&totalItems)
+		db.Model(&models.SaleModel{}).Count(&pagination.TotalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
-		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Find(&sales).Error; err != nil {
-			return err
+		if err := db.Limit(limit).Offset(offset).Where("store_id = ?", storeID).Preload("SaleItems").Find(&pagination.Data).Error; err != nil {
+			return nil, err
 		}
-		// Calculate total pages
-		// totalPages = int(int(totalItems)/limit) + 1
-		return nil
+		return pagination, nil
 	})
-	// metadata := gin.H{
-	// 	"totalItems":  totalItems,
-	// 	"totalPages":  totalPages,
-	// 	"currentPage": page,
-	// 	"data":        sales,
-	// }
 	if err != nil {
-		return 0, nil, err
+		return pagination, err
 	}
 
 	// Prepare metadata
 
-	return int(totalItems), sales, nil
+	return pagination, nil
 }

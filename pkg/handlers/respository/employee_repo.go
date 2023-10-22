@@ -37,18 +37,18 @@ func (r *employeeRepositoryImpl) GetStores(page, limit int) (int, gin.H) {
 	var totalItems int64 = 0
 	var totalPages int = 0
 
-	e := r.tx.ReadData("store", &stores, func(db *gorm.DB) error {
+	e := r.tx.ReadData("store", &stores, func(db *gorm.DB) (interface{}, error) {
 		// Count total items
 		db.Model(&models.StoreModel{}).Count(&totalItems)
 		// Retrieve paginated products
 		offset := (page - 1) * limit
 
 		if err := db.Limit(limit).Offset(offset).Find(&stores).Error; err != nil {
-			return err
+			return nil, err
 		}
 		// Calculate total pages
 		totalPages = int(int(totalItems)/limit) + 1
-		return nil
+		return stores, nil
 	})
 	if e != nil {
 		return http.StatusInternalServerError, gin.H{"error": e.Error()}
@@ -121,8 +121,11 @@ func (r *employeeRepositoryImpl) GetStoreInfo(storeID uint) *models.StoreModel {
 	var store models.StoreModel
 
 	key := fmt.Sprintf("store/%d", storeID)
-	err := r.tx.ReadData(db.RedisKey(key), &store, func(db *gorm.DB) error {
-		return db.First(&store, storeID).Error
+	err := r.tx.ReadData(key, &store, func(db *gorm.DB) (interface{}, error) {
+		if e := db.First(&store, storeID).Error; e != nil {
+			return nil, e
+		}
+		return store, nil
 	})
 	if err != nil {
 		return nil
