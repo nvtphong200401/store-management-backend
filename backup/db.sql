@@ -46,6 +46,87 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
 
 
+--
+-- Name: unaccent; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION unaccent; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION unaccent IS 'text search dictionary that removes accents';
+
+
+--
+-- Name: fr; Type: TEXT SEARCH CONFIGURATION; Schema: public; Owner: root
+--
+
+CREATE TEXT SEARCH CONFIGURATION public.fr (
+    PARSER = pg_catalog."default" );
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR asciiword WITH french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR word WITH public.unaccent, french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR numword WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR email WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR url WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR host WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR sfloat WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR version WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR hword_numpart WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR hword_part WITH public.unaccent, french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR hword_asciipart WITH french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR numhword WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR asciihword WITH french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR hword WITH public.unaccent, french_stem;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR url_path WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR file WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR "float" WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR "int" WITH simple;
+
+ALTER TEXT SEARCH CONFIGURATION public.fr
+    ADD MAPPING FOR uint WITH simple;
+
+
+ALTER TEXT SEARCH CONFIGURATION public.fr OWNER TO root;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -88,6 +169,19 @@ ALTER TABLE public.employees_id_seq OWNER TO root;
 
 ALTER SEQUENCE public.employees_id_seq OWNED BY public.employees.id;
 
+
+--
+-- Name: join_requests; Type: TABLE; Schema: public; Owner: root
+--
+
+CREATE TABLE public.join_requests (
+    employee_id bigint NOT NULL,
+    store_id bigint NOT NULL,
+    status text DEFAULT 'pending'::text
+);
+
+
+ALTER TABLE public.join_requests OWNER TO root;
 
 --
 -- Name: products; Type: TABLE; Schema: public; Owner: root
@@ -231,6 +325,14 @@ COPY public.employees (id, created_at, updated_at, deleted_at, username, passwor
 
 
 --
+-- Data for Name: join_requests; Type: TABLE DATA; Schema: public; Owner: root
+--
+
+COPY public.join_requests (employee_id, store_id, status) FROM stdin;
+\.
+
+
+--
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: root
 --
 
@@ -306,6 +408,14 @@ ALTER TABLE ONLY public.employees
 
 ALTER TABLE ONLY public.employees
     ADD CONSTRAINT employees_username_key UNIQUE (username);
+
+
+--
+-- Name: join_requests join_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: root
+--
+
+ALTER TABLE ONLY public.join_requests
+    ADD CONSTRAINT join_requests_pkey PRIMARY KEY (employee_id, store_id);
 
 
 --

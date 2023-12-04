@@ -14,19 +14,20 @@ import (
 
 type TxStore struct {
 	db         *gorm.DB
-	rd         *redis.Client
+	RD         *redis.Client
 	cacheMutex sync.Mutex
 }
 
 func NewTXStore(db *gorm.DB, rd *redis.Client) TxStore {
 	return TxStore{
 		db: db,
-		rd: rd,
+		RD: rd,
 	}
 }
 
 func (ts *TxStore) MigrateUp() {
 	ts.db.AutoMigrate(&models.Product{}, &models.Employee{}, &models.SaleModel{}, &models.SaleItem{}, &models.JoinRequest{}, models.StoreModel{})
+	ts.db.Exec("CREATE EXTENSION IF NOT EXISTS \"unaccent\"")
 	ts.db.Exec("DROP TEXT SEARCH CONFIGURATION IF EXISTS fr")
 	ts.db.Exec("CREATE TEXT SEARCH CONFIGURATION fr ( COPY = french )")
 	ts.db.Exec(`ALTER TEXT SEARCH CONFIGURATION fr
@@ -35,13 +36,13 @@ func (ts *TxStore) MigrateUp() {
 }
 
 func (ts *TxStore) MigrateDown() {
-	keys, err := ts.rd.Keys("*").Result()
+	keys, err := ts.RD.Keys("*").Result()
 	if err != nil {
 		log.Println(err)
 	}
 	// Delete all keys
 	for _, key := range keys {
-		if err := ts.rd.Del(key).Err(); err != nil {
+		if err := ts.RD.Del(key).Err(); err != nil {
 			log.Printf("Error deleting key %s: %v", key, err)
 		}
 	}
@@ -53,7 +54,7 @@ func (ts *TxStore) CloseStorage() error {
 	if err != nil {
 		return err
 	}
-	err = ts.rd.Close()
+	err = ts.RD.Close()
 	if err != nil {
 		return err
 	}
@@ -66,7 +67,7 @@ func (ts *TxStore) ExecuteTX(fn func(db *gorm.DB, rd *redis.Client) error) error
 	if tx.Error != nil {
 		return tx.Error
 	}
-	if err := fn(tx, ts.rd); err != nil {
+	if err := fn(tx, ts.RD); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -86,7 +87,7 @@ func (ts *TxStore) WriteData(key string, writeToDB func(db *gorm.DB) (interface{
 	}
 	data, _ := json.Marshal(source)
 	if key != "" {
-		ts.rd.Set(string(key), string(data), time.Minute*30)
+		ts.RD.Set(string(key), string(data), time.Minute*30)
 	}
 	err = tx.Commit().Error
 	return err
@@ -130,7 +131,7 @@ func (ts *TxStore) ReadData(key string, dest interface{}, getFromDB func(db *gor
 		return err
 	}
 
-	if err := ts.rd.Set(cacheKey, string(data), time.Minute*30).Err(); err != nil {
+	if err := ts.RD.Set(cacheKey, string(data), time.Minute*30).Err(); err != nil {
 		log.Printf("Error storing data in cache: %v", err)
 		return err
 	}
@@ -140,7 +141,7 @@ func (ts *TxStore) ReadData(key string, dest interface{}, getFromDB func(db *gor
 
 func (ts *TxStore) checkCache(key string, dest interface{}) error {
 
-	cachedData, err := ts.rd.Get(key).Result()
+	cachedData, err := ts.RD.Get(key).Result()
 	if err == nil {
 		if err := json.Unmarshal([]byte(cachedData), &dest); err != nil {
 			log.Printf("Cache hit but failed to unmarshal: %v", err)

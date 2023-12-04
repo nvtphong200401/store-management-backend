@@ -52,6 +52,18 @@ func NewProductAPI(ps usecases.ProductUseCases) ProductAPI {
 // 	c.JSON(http.StatusCreated, products)
 // }
 
+// @BasePath /api/v1
+
+// PingExample godoc
+// @Summary ping example
+// @Schemes
+// @Description do ping
+// @Tags example
+// @Accept json
+// @Produce json
+// @Security		ApiKeyAuth
+// @Success 200 {string} Helloworld
+// @Router /products [get]
 func (api *productAPIImpl) ListProduct(c *gin.Context) {
 	employee, err := helpers.GetEmployee(c)
 	if err != nil {

@@ -1,6 +1,7 @@
 package postgres_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -32,16 +33,28 @@ func (s *authSuiteTest) TearDownTest() {
 
 func (s *authSuiteTest) TestSignUp() {
 	repo := respository.NewAuthRepositopry(&s.TxStore)
-	err := repo.SignUp("daylarapviet", []byte("wtf123456"))
-	require.NoError(s.T(), err)
+	authUseCase := usecases.NewAuthUseCases(repo)
+	status, response := authUseCase.SignUp("nvtphong20042001@gmail.com", "wtf123456")
+	fmt.Println(response)
+	require.Equal(s.T(), http.StatusOK, status)
 }
+
+// func (s *authSuiteTest) TestVerifyCode() {
+// 	repo := respository.NewAuthRepositopry(&s.TxStore)
+// 	authUseCase := usecases.NewAuthUseCases(repo)
+// 	status, _ := authUseCase.SignUp("nvtphong20042001@gmail.com", "wtf123456")
+// 	require.Equal(s.T(), http.StatusOK, status)
+// 	statusCode, _ := authUseCase.Login("nvtphong20042001@gmail.com", "wtf123456")
+// 	require.Equal(s.T(), http.StatusOK, statusCode)
+
+// 	authUseCase.V
+// }
 
 func (s *authSuiteTest) TestLogin() {
 	repo := respository.NewAuthRepositopry(&s.TxStore)
 	authUseCase := usecases.NewAuthUseCases(repo)
-	err := repo.SignUp("daylarapviet", []byte("wtf123456"))
-	require.NoError(s.T(), err)
+	status, _ := authUseCase.SignUp("daylarapviet", "wtf123456")
+	require.Equal(s.T(), http.StatusOK, status)
 	statusCode, _ := authUseCase.Login("daylarapviet", "wtf123456")
 	require.Equal(s.T(), http.StatusOK, statusCode)
-
 }

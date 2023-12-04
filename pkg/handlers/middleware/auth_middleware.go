@@ -37,14 +37,8 @@ func (m *middlewareImpl) AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": err.Error()})
 			return
 		}
-		// if err := claims.Valid(); err != nil {
-		// 	c.AbortWithStatus(http.StatusUnauthorized)
-		// 	return
-		// }
-		// var user models.Employee
-
-		// m.auth.CheckID(claims.UserID, &user)
-		c.Set("user", user)
+		// TODO: handle unverified user
+		c.Set("user", *user)
 
 		c.Next()
 	}

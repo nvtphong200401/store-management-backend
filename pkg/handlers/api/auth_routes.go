@@ -1,9 +1,11 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/nvtphong200401/store-management/pkg/handlers/models"
 	"github.com/nvtphong200401/store-management/pkg/handlers/usecases"
 )
 
@@ -11,6 +13,7 @@ type AuthAPI interface {
 	Login(c *gin.Context)
 	SignUp(c *gin.Context)
 	RenewToken(c *gin.Context)
+	VerifyCode(c *gin.Context)
 }
 
 type authAPIImpl struct {
@@ -43,19 +46,32 @@ func (api *authAPIImpl) RenewToken(c *gin.Context) {
 	// })
 }
 
-func (api *authAPIImpl) Login(c *gin.Context) {
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+type credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
+// @BasePath /api/v1
+
+// Login godoc
+// @Summary Login with email and password
+// @Schemes
+// @Description Login with email and password
+// @Tags Login
+// @Accept json
+// @Produce json
+// @Param			auth	body		credentials	true	"Auth"
+// @Success 200 {object} credentials
+// @Router /login [post]
+func (api *authAPIImpl) Login(c *gin.Context) {
+	var credentials credentials
 	if err := c.BindJSON(&credentials); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	statusCode, response := api.as.Login(credentials.Username, credentials.Password)
+	statusCode, response := api.as.Login(credentials.Email, credentials.Password)
 	// if err != nil {
-	// 	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid username or password"})
+	// 	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid email or password"})
 	// 	return
 	// }
 
@@ -63,14 +79,20 @@ func (api *authAPIImpl) Login(c *gin.Context) {
 }
 
 func (api *authAPIImpl) SignUp(c *gin.Context) {
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	var credentials credentials
 	if err := c.BindJSON(&credentials); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	statusCode, response := api.as.SignUp(credentials.Username, credentials.Password)
+	statusCode, response := api.as.SignUp(credentials.Email, credentials.Password)
 	c.JSON(statusCode, response)
+}
+func (api *authAPIImpl) VerifyCode(c *gin.Context) {
+	code := c.GetString("code")
+	user, exist := c.Get("user")
+	if exist {
+		api.as.VerifyCode(user.(models.User), code)
+	} else {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errors.New("something went wrong").Error())
+	}
 }

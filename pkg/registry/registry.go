@@ -12,9 +12,9 @@ type registry struct {
 	tx *db.TxStore
 }
 
-func NewRegistry(tx db.TxStore) Registry {
+func NewRegistry(tx *db.TxStore) Registry {
 	return &registry{
-		tx: &tx,
+		tx: tx,
 	}
 }
 

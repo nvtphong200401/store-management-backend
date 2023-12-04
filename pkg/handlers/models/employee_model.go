@@ -1,11 +1,7 @@
 package models
 
-import (
-	models "github.com/nvtphong200401/store-management/pkg/handlers/models/auth"
-)
-
 type Employee struct {
-	models.User
+	User
 	StoreID  uint             `json:"StoreID,omitempty"`
 	Position EmployeePosition `gorm:"default:'unknown'"`
 }
