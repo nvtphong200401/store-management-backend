@@ -18,8 +18,7 @@ func InitRouter(c controller.AppController) *gin.Engine {
 	apiv1 := r.Group("api/v1")
 
 	// Authentication
-	apiv1.POST("/login", c.Auth.Login)
-	apiv1.POST("/signup", c.Auth.SignUp)
+	authRouter(apiv1, c)
 
 	productRoutes := apiv1.Group("products")
 	productRoutes.Use(c.Middleware.AuthMiddleware(), c.Middleware.StoreMiddleware())
@@ -39,6 +38,17 @@ func InitRouter(c controller.AppController) *gin.Engine {
 	userRouter(userRoutes, c)
 
 	return r
+}
+
+func authRouter(apiAuth *gin.RouterGroup, c controller.AppController) {
+	apiAuth.POST("/login", c.Auth.Login)
+	apiAuth.POST("/signup", c.Auth.SignUp)
+
+	apiAuth.Use(c.Middleware.AuthMiddleware())
+	{
+		apiAuth.POST("/verify", c.Auth.VerifyCode)
+		apiAuth.POST("/request-verification-code", c.Auth.RequestVerificationCode)
+	}
 }
 
 func productRouter(apiProduct *gin.RouterGroup, c controller.AppController) {

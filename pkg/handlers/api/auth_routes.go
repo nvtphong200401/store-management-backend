@@ -14,6 +14,7 @@ type AuthAPI interface {
 	SignUp(c *gin.Context)
 	RenewToken(c *gin.Context)
 	VerifyCode(c *gin.Context)
+	RequestVerificationCode(c *gin.Context)
 }
 
 type authAPIImpl struct {
@@ -87,11 +88,22 @@ func (api *authAPIImpl) SignUp(c *gin.Context) {
 	statusCode, response := api.as.SignUp(credentials.Email, credentials.Password)
 	c.JSON(statusCode, response)
 }
+
 func (api *authAPIImpl) VerifyCode(c *gin.Context) {
 	code := c.GetString("code")
 	user, exist := c.Get("user")
 	if exist {
 		api.as.VerifyCode(user.(models.User), code)
+	} else {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, errors.New("something went wrong").Error())
+	}
+}
+
+func (api *authAPIImpl) RequestVerificationCode(c *gin.Context) {
+	user, exist := c.Get("user")
+
+	if exist {
+		api.as.RequestVerificationCode(user.(models.User))
 	} else {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errors.New("something went wrong").Error())
 	}

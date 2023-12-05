@@ -38,6 +38,12 @@ func (m *middlewareImpl) AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		// TODO: handle unverified user
+		if !user.Verified {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": "unverified",
+			})
+			return
+		}
 		c.Set("user", *user)
 
 		c.Next()
